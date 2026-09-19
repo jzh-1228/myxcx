@@ -84,7 +84,11 @@ const DEFAULT_SETTINGS = {
   mattingProvider: '',
   mattingBaseUrl: '',
   mattingWebhookUrl: '',
-  autoMatteIdPhoto: true
+  autoMatteIdPhoto: true,
+  beautyProvider: '',
+  beautyBaseUrl: '',
+  beautyMode: 'beauty',
+  autoBeautyIdPhoto: false
 };
 
 function getSettings() {

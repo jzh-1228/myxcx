@@ -30,6 +30,8 @@ Page({
       sourcePath: draft.sourcePath || draft.imagePath || '',
       mattePath: draft.mattePath || '',
       bgHex: draft.bgHex || '',
+      beautyBasePath: draft.beautyBasePath || '',
+      beautyLabel: draft.beautyLabel || '',
       mode: draft.mode || 'portrait',
       sub: draft.sub || 'skin',
       spec: draft.specContext || null,

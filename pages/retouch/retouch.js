@@ -37,6 +37,8 @@ Page({
       sourcePath: draft.sourcePath || draft.imagePath || '',
       mattePath: draft.mattePath || '',
       bgHex: draft.bgHex || '',
+      beautyBasePath: draft.beautyBasePath || '',
+      beautyLabel: draft.beautyLabel || '',
       mode: draft.mode || 'portrait',
       sub: draft.sub || 'skin',
       spec: draft.specContext || null,
@@ -56,7 +58,8 @@ Page({
     this.pickAndOpen({
       sourceType: ['album', 'camera'],
       mode: item.mode,
-      sub: item.sub
+      sub: item.sub,
+      autoBeauty: item.id === 'beauty'
     });
   },
 
@@ -68,7 +71,8 @@ Page({
           sourcePath: payload.imagePath,
           mode: options.mode,
           sub: options.sub,
-          autoMatte: options.sub === 'matting'
+          autoMatte: options.sub === 'matting',
+          autoBeauty: !!options.autoBeauty
         });
       },
       { sourceType: options.sourceType }

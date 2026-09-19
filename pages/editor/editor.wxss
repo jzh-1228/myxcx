@@ -87,7 +87,7 @@
   border-top: 3rpx solid #333;
   padding: 20rpx 28rpx 16rpx;
   flex-shrink: 0;
-  max-height: 420rpx;
+  max-height: 500rpx;
   overflow-y: auto;
 }
 
@@ -289,4 +289,36 @@
   justify-content: flex-end;
   gap: 16rpx;
   align-items: center;
+}
+
+.beauty-tag {
+  position: absolute;
+  right: 12rpx;
+  bottom: 12rpx;
+  font-size: 18rpx;
+  color: #555;
+  border: 2rpx dashed #bbb;
+  padding: 4rpx 10rpx;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.beauty-modes {
+  display: flex;
+  gap: 12rpx;
+  margin-bottom: 12rpx;
+}
+
+.beauty-hint {
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.beauty-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 8rpx;
+}
+
+.beauty-actions .btn {
+  flex: 1;
 }

@@ -5,6 +5,9 @@ const { isConfigured, getMattingConfig } = require('../../utils/matting-config')
 const { toast } = require('../../utils/system');
 const media = require('../../services/media');
 const matting = require('../../services/matting');
+const beauty = require('../../services/beauty');
+const { getBeautyConfig } = require('../../utils/beauty-config');
+const { MODE_COMPLIANCE, naturalPreset } = require('../../constants/beauty');
 
 function filterSpecs(keyword) {
   const q = (keyword || '').trim();
@@ -98,13 +101,50 @@ Page({
             colorHex
           })
           .then((result) => {
-            wx.hideLoading();
-            enterEditor(spec, file, {
-              imagePath: result.imagePath,
-              sourcePath: result.sourcePath,
-              mattePath: result.mattePath,
-              bgHex: result.colorHex
-            });
+            const beautyCfg = getBeautyConfig();
+            if (!beautyCfg.autoBeautyIdPhoto) {
+              wx.hideLoading();
+              enterEditor(spec, file, {
+                imagePath: result.imagePath,
+                sourcePath: result.sourcePath,
+                mattePath: result.mattePath,
+                bgHex: result.colorHex,
+                beautyBasePath: result.imagePath
+              });
+              return;
+            }
+            wx.showLoading({ title: '弱美颜中', mask: true });
+            const preset = naturalPreset(MODE_COMPLIANCE);
+            return beauty
+              .beautify({
+                imagePath: result.imagePath,
+                smooth: preset.smooth,
+                whiten: preset.whiten,
+                blemish: preset.blemish,
+                mode: MODE_COMPLIANCE
+              })
+              .then((b) => {
+                wx.hideLoading();
+                enterEditor(spec, file, {
+                  imagePath: b.unchanged ? result.imagePath : b.imagePath,
+                  sourcePath: result.sourcePath,
+                  mattePath: result.mattePath,
+                  bgHex: result.colorHex,
+                  beautyBasePath: result.imagePath,
+                  beautyLabel: b.unchanged ? '' : b.label
+                });
+              })
+              .catch((err) => {
+                wx.hideLoading();
+                beauty.showError(err);
+                enterEditor(spec, file, {
+                  imagePath: result.imagePath,
+                  sourcePath: result.sourcePath,
+                  mattePath: result.mattePath,
+                  bgHex: result.colorHex,
+                  beautyBasePath: result.imagePath
+                });
+              });
           })
           .catch((err) => {
             wx.hideLoading();

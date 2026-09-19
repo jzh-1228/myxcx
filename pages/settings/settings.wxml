@@ -33,15 +33,35 @@
   </view>
   <view class="btn btn-primary save-btn" bindtap="onSaveMatting">保存抠图配置</view>
 
+  <view class="block-title">弱美颜</view>
+  <view class="row" bindtap="onBeautyMode">
+    <text>默认美颜模式</text>
+    <text class="value">{{beautyModeText}} ›</text>
+  </view>
+  <view class="field">
+    <text class="field-label">美颜服务 baseUrl（可空，空则复用抠图地址并尝试 /beautify）</text>
+    <input
+      class="field-input"
+      placeholder="可留空，使用本地轻处理"
+      value="{{beautyBaseUrl}}"
+      bindinput="onBeautyBaseUrl"
+    />
+  </view>
+  <view class="row" bindtap="onToggleAutoBeauty">
+    <text>证件照抠图后自动弱美颜</text>
+    <text class="value">{{autoBeautyText}}</text>
+  </view>
+  <view class="btn btn-primary save-btn" bindtap="onSaveBeauty">保存美颜配置</view>
+
   <view class="row">
     <text>版本</text>
-    <text class="value">0.2.0-matting</text>
+    <text class="value">0.3.0-beauty</text>
   </view>
   <view class="row">
     <text>关于</text>
     <text class="value">最美证件照 · 全能修图</text>
   </view>
   <view class="hint label-sm">
-    抠图默认走自托管 Hivision 兼容 API（/human_matting、/add_background、/idphoto）。未填写地址时会明确报错，不会假成功。AI 写真等仍为厂商无关桩。开发者工具请勾选「不校验合法域名」；正式版须把 HTTPS 域名加入 request 与 uploadFile 合法域名。
+    抠图走 Hivision 兼容 API。弱美颜默认「本地轻处理」（离屏画布磨皮/提亮，会改像素）；若配置了 baseUrl 会先试 /beautify，没有该接口则回退本地。证件照默认合规弱档。未配置且画布不可用时会明确报错，不会假成功。
   </view>
 </view>

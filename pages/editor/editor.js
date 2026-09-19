@@ -16,8 +16,18 @@ const { takeEditorSession } = require('../../utils/session');
 const { isConfigured } = require('../../utils/matting-config');
 const ai = require('../../services/ai');
 const exportService = require('../../services/export');
+const {
+  MODE_COMPLIANCE,
+  MODE_BEAUTY,
+  skinSliderList,
+  slidersFromList,
+  naturalPreset,
+  clampValue
+} = require('../../constants/beauty');
+const { defaultEditorMode } = require('../../utils/beauty-config');
 const matting = require('../../services/matting');
 const { notConfigured } = require('../../services/matting/errors');
+const beauty = require('../../services/beauty');
 
 function clone(obj) {
   return JSON.parse(JSON.stringify(obj));
@@ -68,7 +78,12 @@ Page({
     portraitChips: PORTRAIT_CHIPS,
     portraitSub: 'skin',
     portraitTitle: '美肤',
-    portraitSliders: clone(PORTRAIT_CHIPS[0].sliders),
+    portraitSliders: skinSliderList(MODE_BEAUTY),
+    beautyMode: MODE_BEAUTY,
+    beautyMax: 70,
+    beautyBasePath: '',
+    beautyLabel: '',
+    beautyBusy: false,
     filters: FILTERS,
     filterId: 'none',
     filterStrength: 70,
@@ -135,14 +150,21 @@ Page({
       draftId,
       mode,
       specContext,
-      canvasHint: canvasHint(mode, specContext)
+      canvasHint: canvasHint(mode, specContext),
+      beautyMode: defaultEditorMode(!!specContext),
+      beautyBasePath: session.beautyBasePath || (draft && draft.beautyBasePath) || session.imagePath || imagePath,
+      beautyLabel: session.beautyLabel || (draft && draft.beautyLabel) || ''
     };
+    next.portraitSliders = skinSliderList(next.beautyMode);
+    next.beautyMax = next.beautyMode === MODE_COMPLIANCE ? 35 : 70;
 
     if (mode === 'portrait') {
       const chip = findChip(sub || 'skin');
       next.portraitSub = chip.id;
       next.portraitTitle = chip.name;
-      next.portraitSliders = clone(chip.sliders);
+      if (chip.id !== 'skin') {
+        next.portraitSliders = clone(chip.sliders);
+      }
     } else if (mode === 'filter') {
       next.filterId = sub || 'none';
     } else if (mode === 'edit') {
@@ -158,11 +180,16 @@ Page({
       query.autoMatte === '1' ||
       session.autoMatte ||
       sub === 'matting';
+    const shouldBeauty = query.autoBeauty === '1' || session.autoBeauty;
 
     this.setData(next, () => {
       this.pushHistory();
       if (shouldAuto && next.imagePath && !mattePath) {
         this.runMatte();
+      } else if (shouldBeauty && next.imagePath) {
+        this.setData({ portraitSliders: skinSliderList(next.beautyMode, naturalPreset(next.beautyMode)) }, () => {
+          this.applyBeauty();
+        });
       }
     });
   },
@@ -183,7 +210,10 @@ Page({
       imagePath: d.imagePath,
       sourcePath: d.sourcePath,
       mattePath: d.mattePath,
-      bgHex: d.bgHex
+      bgHex: d.bgHex,
+      beautyMode: d.beautyMode,
+      beautyBasePath: d.beautyBasePath,
+      beautyLabel: d.beautyLabel
     };
   },
 
@@ -207,7 +237,11 @@ Page({
       bgHex: state.bgHex || '',
       customBg: !!(state.bgHex && !BG_PRESETS.some((item) => item.hex === state.bgHex)),
       editSheetTitle: editSheetTitle(state.editTool),
-      canvasHint: canvasHint(state.mode, state.specContext)
+      canvasHint: canvasHint(state.mode, state.specContext),
+      beautyMode: state.beautyMode || MODE_BEAUTY,
+      beautyBasePath: state.beautyBasePath || '',
+      beautyLabel: state.beautyLabel || '',
+      beautyMax: (state.beautyMode || MODE_BEAUTY) === MODE_COMPLIANCE ? 35 : 70
     });
   },
 
@@ -231,6 +265,9 @@ Page({
       sourcePath: this.data.sourcePath,
       mattePath: this.data.mattePath,
       bgHex: this.data.bgHex,
+      beautyBasePath: this.data.beautyBasePath,
+      beautyLabel: this.data.beautyLabel,
+      beautyMode: this.data.beautyMode,
       mode: this.data.mode,
       sub: this.currentSub(),
       specContext: this.data.specContext
@@ -308,12 +345,99 @@ Page({
   onPortraitChip(e) {
     const id = e.currentTarget.dataset.id;
     const chip = findChip(id);
-    this.setData({
+    const next = {
       portraitSub: chip.id,
       portraitTitle: chip.name,
       portraitSliders: clone(chip.sliders)
-    });
+    };
+    if (chip.id === 'skin') {
+      next.portraitSliders = skinSliderList(this.data.beautyMode, slidersFromList(this.data.portraitSliders));
+    }
+    this.setData(next);
     this.pushHistory();
+  },
+
+  onBeautyMode(e) {
+    const beautyMode = e.currentTarget.dataset.mode === MODE_COMPLIANCE ? MODE_COMPLIANCE : MODE_BEAUTY;
+    const sliders = slidersFromList(this.data.portraitSliders);
+    this.setData({
+      beautyMode,
+      beautyMax: beautyMode === MODE_COMPLIANCE ? 35 : 70,
+      portraitSliders: skinSliderList(beautyMode, sliders)
+    });
+    this.scheduleBeauty();
+  },
+
+  onNaturalBeauty() {
+    this.setData({
+      portraitSub: 'skin',
+      portraitTitle: '美肤',
+      portraitSliders: skinSliderList(this.data.beautyMode, naturalPreset(this.data.beautyMode))
+    });
+    this.applyBeauty();
+  },
+
+  onApplyBeauty() {
+    this.applyBeauty();
+  },
+
+  scheduleBeauty() {
+    if (this._beautyTimer) clearTimeout(this._beautyTimer);
+    this._beautyTimer = setTimeout(() => {
+      this.applyBeauty();
+    }, 480);
+  },
+
+  applyBeauty() {
+    const source = this.data.beautyBasePath || this.data.imagePath;
+    if (!source) {
+      toast('请先导入照片');
+      return;
+    }
+    if (this.data.beautyBusy || this.data.mattingBusy) return;
+    const sliders = slidersFromList(this.data.portraitSliders);
+    sliders.smooth = clampValue(sliders.smooth, this.data.beautyMode);
+    sliders.whiten = clampValue(sliders.whiten, this.data.beautyMode);
+    sliders.blemish = clampValue(sliders.blemish, this.data.beautyMode);
+    if (!this.data.beautyBasePath) {
+      this.setData({ beautyBasePath: this.data.imagePath });
+    }
+    this.setData({ beautyBusy: true });
+    wx.showLoading({ title: '弱美颜处理中', mask: true });
+    beauty
+      .beautify({
+        imagePath: this.data.beautyBasePath || this.data.imagePath,
+        smooth: sliders.smooth,
+        whiten: sliders.whiten,
+        blemish: sliders.blemish,
+        mode: this.data.beautyMode
+      })
+      .then((res) => {
+        wx.hideLoading();
+        if (res.unchanged) {
+          this.setData({
+            beautyBusy: false,
+            imagePath: this.data.beautyBasePath || this.data.imagePath,
+            beautyLabel: ''
+          });
+          this.pushHistory();
+          toast('强度为 0，未改像素');
+          return;
+        }
+        this.setData({
+          beautyBusy: false,
+          imagePath: res.imagePath,
+          beautyLabel: res.label || '本地轻处理',
+          comparing: false
+        });
+        this.pushHistory();
+        toast(res.label === '云端美颜' ? '已应用云端弱美颜' : '已应用本地轻处理', 'success');
+      })
+      .catch((err) => {
+        wx.hideLoading();
+        this.setData({ beautyBusy: false });
+        beauty.showError(err);
+      });
   },
 
   onSliderChange(e) {
@@ -321,10 +445,17 @@ Page({
     if (key === 'filterStrength') {
       this.setData({ filterStrength: value });
     } else if (this.data.mode === 'portrait') {
-      const portraitSliders = this.data.portraitSliders.map((item) =>
-        item.key === key ? Object.assign({}, item, { value }) : item
-      );
+      const portraitSliders = this.data.portraitSliders.map((item) => {
+        if (item.key !== key) return item;
+        const nextVal =
+          this.data.portraitSub === 'skin' ? clampValue(value, this.data.beautyMode) : value;
+        return Object.assign({}, item, { value: nextVal });
+      });
       this.setData({ portraitSliders });
+      if (!live && this.data.portraitSub === 'skin') {
+        this.scheduleBeauty();
+        return;
+      }
     } else if (this.data.mode === 'edit') {
       const adjustSliders = this.data.adjustSliders.map((item) =>
         item.key === key ? Object.assign({}, item, { value }) : item
@@ -393,6 +524,8 @@ Page({
           mattePath: res.mattePath,
           imagePath: res.imagePath,
           bgHex: res.colorHex || this.data.bgHex,
+          beautyBasePath: res.imagePath,
+          beautyLabel: '',
           comparing: false
         });
         this.pushHistory();
@@ -470,6 +603,8 @@ Page({
           bgHex: res.colorHex,
           customBg: !BG_PRESETS.some((item) => item.hex === res.colorHex),
           specContext,
+          beautyBasePath: res.imagePath,
+          beautyLabel: '',
           comparing: false
         });
         this.pushHistory();
@@ -534,7 +669,16 @@ Page({
   },
 
   onSpecAudit() {
-    toast('过审提示桩：脸部位姿 / 底色 / 尺寸');
+    this.setData({
+      beautyMode: MODE_COMPLIANCE,
+      beautyMax: 35,
+      portraitSub: 'skin',
+      portraitTitle: '美肤',
+      portraitSliders: skinSliderList(MODE_COMPLIANCE, slidersFromList(this.data.portraitSliders)),
+      mode: 'portrait'
+    });
+    toast('合规模式：美颜已锁定弱档');
+    this.scheduleBeauty();
   },
 
   onExportSave() {

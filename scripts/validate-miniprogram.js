@@ -42,6 +42,11 @@ const requiredRoots = [
   'services/matting/hivision.js',
   'services/matting/aliyun.js',
   'services/matting/webhook.js',
+  'services/beauty.js',
+  'services/beauty/local.js',
+  'services/beauty/http.js',
+  'services/beauty/pixels.js',
+  'constants/beauty.js',
   'utils/storage.js',
   'utils/navigate.js',
   'constants/editor.js',
@@ -97,6 +102,11 @@ global.wx = {
   saveImageToPhotosAlbum() {},
   uploadFile() {},
   request() {},
+  getImageInfo() {},
+  createOffscreenCanvas() {
+    return null;
+  },
+  canvasToTempFilePath() {},
   getFileSystemManager() {
     return {
       writeFile(opts) {
@@ -133,7 +143,12 @@ function walk(dir) {
       return;
     }
     if (!name.endsWith('.js')) return;
-    if (name === 'validate-miniprogram.js' || name === 'test-matting.js' || name === 'mock-hivision.js') {
+    if (
+      name === 'validate-miniprogram.js' ||
+      name === 'test-matting.js' ||
+      name === 'test-beauty.js' ||
+      name === 'mock-hivision.js'
+    ) {
       return;
     }
     try {

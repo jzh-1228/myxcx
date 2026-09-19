@@ -11,9 +11,9 @@ const PORTRAIT_CHIPS = [
     id: 'skin',
     name: '美肤',
     sliders: [
-      { key: 'smooth', label: '磨皮', value: 55 },
-      { key: 'whiten', label: '美白', value: 40 },
-      { key: 'blemish', label: '祛瑕', value: 30 }
+      { key: 'smooth', label: '磨皮', value: 28, max: 70 },
+      { key: 'whiten', label: '美白', value: 22, max: 70 },
+      { key: 'blemish', label: '祛瑕', value: 18, max: 70 }
     ]
   },
   {

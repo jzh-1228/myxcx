@@ -2,7 +2,7 @@
 
 微信小程序：**全能修图**（对标醒图信息架构）。「最美证件照」是品牌名；证件照只是挂载在同一套全量编辑器上的规格场景，不是产品边界。
 
-当前版本在骨架之上接入了 **真实人像抠图 + 换底**（自托管 Hivision 兼容 HTTP）。美颜滑杆、滤镜 LUT、AI 写真等仍为桩。
+当前版本接入了 **真实人像抠图 + 换底**，以及 **弱美颜**（人像·美肤滑杆会改画布像素）。滤镜 LUT、其它人像细项、AI 写真等仍为桩。
 
 ## 在微信开发者工具中预览
 
@@ -105,7 +105,39 @@ matting: {
 | `webhook` | 若填了 URL，POST JSON `{ action, imageBase64, color }`，期望返回 `{ status, image_base64 }` |
 | `aliyun` | **仅配置位**（`matting.aliyun.endpoint / accessKeyId / accessKeySecret`），不发请求、不放假密钥 |
 
-AI 生成类能力仍走 `services/ai.js` 桩，与抠图 Provider 分开。
+AI 生成类能力仍走 `services/ai.js` 桩，与抠图 / 美颜 Provider 分开。
+
+## 弱美颜（人像 · 美肤）
+
+默认强度是弱档（约 20–40%）。证件照 / **合规** 再压到上限 35，并显示提示。**美颜模式** 上限 70。
+
+页面只调用 `services/beauty.js`：
+
+| Provider | 行为 |
+|----------|------|
+| `auto`（默认） | 若有 baseUrl 先试 `POST {baseUrl}/beautify`（可在 `config.js` 改 `beauty.path`）；404 或失败则 **本地轻处理** |
+| `local` | 只用离屏 Canvas 2D：肤色区弱磨皮 + 轻度提亮 / 祛瑕混合 |
+| `hivision` / `http` | 同上远程接口；字段含 `smooth` / `whiten` / `denoise` 以及 Hivision `/idphoto` 风格的 `whitening_strength` |
+
+本地路径会在画布角标写明 **「本地轻处理」**，并且必须改像素；强度为 0 时提示「未改像素」，不假装成功。
+
+离屏画布不可用且未配置远程时，弹出说明，不会静默假成功。
+
+### 怎么开
+
+1. **不配服务也能用**：微信基础库支持 Canvas 2D 即可拖滑杆看效果。
+2. **复用 Hivision**：设置里抠图 `baseUrl` 填好后，美颜会先打 `/beautify`。Hivision 原版没有该接口时自动回退本地。证件照制作仍可用 `/idphoto` 的 `whitening_strength`（弱档映射）。
+3. **单独美颜 URL**：`config.js` 的 `beauty.baseUrl` + `beauty.path`，或「我的 → 设置」美颜 baseUrl（覆盖）。
+4. 合法域名与抠图相同：把 HTTPS 主机加入 **request** / **uploadFile**。
+
+证件照进入后自动弱美颜 **默认关**，在设置里打开。打开后也只走合规弱预设。
+
+### 建议点检路径（美颜）
+
+1. 修图导入照片 → 人像 · 美肤 → 拖磨皮/美白/祛瑕或点「自然美颜」「应用」，画布应有可见轻变化，角标「本地轻处理」。
+2. 切到 **合规**：滑杆上限变低；规格条「过审」也会切到合规。
+3. 撤销 / 重做应回到上一张处理图。
+4. 证件照：默认不自动美颜；在设置打开后再走一寸，结果应略弱于美颜模式。
 
 ## 目录
 
@@ -118,6 +150,8 @@ components/
 utils/                 含 matting-config、本地文件、编辑器 session
 services/matting.js    抠图门面
 services/matting/      hivision / webhook / aliyun / parse
+services/beauty.js     弱美颜门面
+services/beauty/       local canvas / http / 纯像素算法
 services/ai.js         AI 生成桩（厂商无关）
 constants/
 scripts/mock-hivision.js
@@ -133,7 +167,8 @@ scripts/test-matting.js
 | 证件照自动换底 | 选图后 `/idphoto` + `/add_background` | 保持规格条换底 |
 | 画布 / 对比 | 展示合成图；对比显示原图 | — |
 | 最近草稿 / 作品 | `wx.setStorageSync` 本地 | 可换云端 |
-| 人像滑杆 / 滤镜 / 其它编辑工具 | **仅 UI** | 算法另接 |
+| 人像·美肤 磨皮/美白/祛瑕 | 弱美颜真实改像素（本地轻处理，可选 /beautify） | 美型/妆容等仍为桩 |
+| 其它人像滑杆 / 滤镜 / 其它编辑工具 | **仅 UI** | 算法另接 |
 | AI 写真 / 造型室 / 超清 / 扩图 | `services/ai.js` 桩 | 只改 service，页面不写死厂商 |
 | 撤销重做 | 含抠图结果路径的状态栈 | — |
 | 保存相册 | 有图则 `wx.saveImageToPhotosAlbum` | — |
@@ -145,7 +180,7 @@ scripts/test-matting.js
 
 1. 启动落在 **修图** Tab；底栏可切到创作 / 证件照 / 我的。
 2. 修图：相册或拍照 → 进入编辑器（默认人像 · 美肤滑杆）。
-3. 编辑器底栏切到滤镜 / 编辑 / 创作 / AI；编辑 → 抠图为真实管线，其余工具仍为桩。
+3. 编辑器底栏切到滤镜 / 编辑 / 创作 / AI；人像美肤与编辑 → 抠图为真实管线，其余工具仍为桩。
 4. 证件照：搜索或点「一寸」→ 选图 → 规格条可折叠，底栏仍是五态。
 5. 我的：作品 / 草稿 / 设置 / 隐私可进；设置可保存抠图地址。
 
@@ -154,6 +189,7 @@ scripts/test-matting.js
 ```bash
 node scripts/validate-miniprogram.js
 node scripts/test-matting.js
+node scripts/test-beauty.js
 ```
 
-结构校验 + 颜色/响应解析 + mock HTTP。不能替代微信开发者工具编译与真机点检。
+结构校验 + 抠图解析 + 弱美颜像素/合规帽。不能替代微信开发者工具编译与真机点检。

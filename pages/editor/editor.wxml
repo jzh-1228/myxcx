@@ -42,6 +42,8 @@
       />
       <view wx:if="{{comparing}}" class="compare-mask">原图</view>
       <view wx:if="{{mattingBusy}}" class="busy-mask">抠图处理中…</view>
+      <view wx:elif="{{beautyBusy}}" class="busy-mask">弱美颜处理中…</view>
+      <view wx:if="{{beautyLabel && !comparing}}" class="beauty-tag">{{beautyLabel}}</view>
     </view>
 
     <scroll-view wx:if="{{mode === 'portrait'}}" class="sec-chips" scroll-x enable-flex>
@@ -58,14 +60,34 @@
   <view class="bottom-sheet">
     <block wx:if="{{mode === 'portrait'}}">
       <view class="sheet-title">{{portraitTitle}}</view>
+      <block wx:if="{{portraitSub === 'skin'}}">
+        <view class="beauty-modes">
+          <view
+            class="chip chip-sm {{beautyMode === 'compliance' ? 'selected' : ''}}"
+            data-mode="compliance"
+            bindtap="onBeautyMode"
+          >合规</view>
+          <view
+            class="chip chip-sm {{beautyMode === 'beauty' ? 'selected' : ''}}"
+            data-mode="beauty"
+            bindtap="onBeautyMode"
+          >美颜</view>
+        </view>
+        <view wx:if="{{beautyMode === 'compliance'}}" class="note-tag beauty-hint">合规档将磨皮/美白/祛瑕锁在弱强度，适合证件照。</view>
+      </block>
       <slider-row
         wx:for="{{portraitSliders}}"
         wx:key="key"
         label="{{item.label}}"
         name="{{item.key}}"
         value="{{item.value}}"
+        max="{{item.max || (portraitSub === 'skin' ? beautyMax : 100)}}"
         bindchange="onSliderChange"
       />
+      <view wx:if="{{portraitSub === 'skin'}}" class="beauty-actions">
+        <view class="btn" bindtap="onNaturalBeauty">自然美颜</view>
+        <view class="btn btn-primary" bindtap="onApplyBeauty">应用</view>
+      </view>
     </block>
 
     <block wx:elif="{{mode === 'filter'}}">

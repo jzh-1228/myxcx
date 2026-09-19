@@ -19,5 +19,13 @@ module.exports = {
       url: '',
       token: ''
     }
+  },
+  beauty: {
+    provider: 'auto',
+    baseUrl: '',
+    path: '/beautify',
+    timeoutMs: 60000,
+    enableLocalFallback: true,
+    defaultMode: 'beauty'
   }
 };

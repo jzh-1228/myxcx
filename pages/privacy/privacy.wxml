@@ -5,6 +5,7 @@
   <view class="p">保存相册：仅在你确认「保存相册」后写入系统相册。</view>
   <view class="p">草稿与作品：当前保存在本机 Storage，未上传云端。</view>
   <view class="p">抠图 / 换底：仅在你主动抠图或证件照自动换底时，把所选照片发往你在设置里配置的自托管地址（Hivision 兼容 API 或 Webhook）。未配置地址时不会上传，并会明确提示。</view>
+  <view class="p">弱美颜：默认在本机离屏画布做轻度磨皮/提亮（「本地轻处理」）。仅当你配置了美颜 /beautify 地址时才会把图发到该服务。</view>
   <view class="p">AI：services/ai.js 为厂商无关桩接口。接入供应商后需补充模型处理、内容安全与留存说明，并明示「AI 生成」。</view>
   <view class="p">本骨架不采集身份证号等证件敏感信息，也不提供真实过审认证。</view>
 </view>

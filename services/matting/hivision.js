@@ -78,14 +78,21 @@ function idPhoto(payload) {
   if (!imagePath) {
     return Promise.reject({ code: 'MATTING_NO_IMAGE', message: '没有可制作证件照的照片' });
   }
-  return postFile(joinUrl(cfg.baseUrl, '/idphoto'), imagePath, {
+  const form = {
     width: String((payload && payload.width) || 295),
     height: String((payload && payload.height) || 413),
     hd: 'true',
     human_matting_model: mattingModel(cfg),
     face_detect_model: 'mtcnn',
     dpi: '300'
-  }).then((data) =>
+  };
+  if (payload && payload.whitening_strength != null) {
+    form.whitening_strength = String(payload.whitening_strength);
+  }
+  if (payload && payload.brightness_strength != null) {
+    form.brightness_strength = String(payload.brightness_strength);
+  }
+  return postFile(joinUrl(cfg.baseUrl, '/idphoto'), imagePath, form).then((data) =>
     writeBase64Image(data._imageBase64, 'png').then((mattePath) => ({
       mattePath,
       imagePath: mattePath

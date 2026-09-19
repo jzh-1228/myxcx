@@ -19,7 +19,10 @@ function openEditor(options) {
     sourcePath = '',
     mattePath = '',
     bgHex = '',
-    autoMatte = false
+    autoMatte = false,
+    autoBeauty = false,
+    beautyBasePath = '',
+    beautyLabel = ''
   } = options || {};
 
   let id = draftId;
@@ -28,6 +31,8 @@ function openEditor(options) {
     sourcePath: sourcePath || imagePath,
     mattePath,
     bgHex,
+    beautyBasePath,
+    beautyLabel,
     mode,
     sub,
     specContext: spec || null
@@ -44,7 +49,10 @@ function openEditor(options) {
     mattePath,
     imagePath,
     bgHex,
-    autoMatte
+    autoMatte,
+    autoBeauty,
+    beautyBasePath,
+    beautyLabel
   });
 
   const query = buildQuery({
@@ -57,7 +65,8 @@ function openEditor(options) {
     canvasW: spec && spec.width,
     canvasH: spec && spec.height,
     bg: spec && spec.bgColor,
-    autoMatte: autoMatte ? '1' : ''
+    autoMatte: autoMatte ? '1' : '',
+    autoBeauty: autoBeauty ? '1' : ''
   });
 
   wx.navigateTo({
