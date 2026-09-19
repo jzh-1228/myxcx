@@ -1,0 +1,39 @@
+.page {
+  padding: 16rpx 32rpx 40rpx;
+}
+
+.empty {
+  text-align: center;
+  padding: 80rpx 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid #eee;
+}
+
+.thumb {
+  width: 120rpx;
+  height: 120rpx;
+  background: #ddd;
+  border: 3rpx solid #999;
+  flex-shrink: 0;
+}
+
+.meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-size: 26rpx;
+  margin-bottom: 8rpx;
+}
+
+.arrow {
+  color: #bbb;
+  font-size: 32rpx;
+}

@@ -1,0 +1,40 @@
+.card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -10rpx;
+}
+
+.feat-card {
+  width: calc(50% - 20rpx);
+  margin: 10rpx;
+  height: 180rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  border-radius: 16rpx;
+}
+
+.feat-name {
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.fc-sub {
+  font-size: 20rpx;
+  font-weight: 400;
+  color: #888;
+}
+
+.tpl-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.tpl-card {
+  display: inline-block;
+  width: 200rpx;
+  margin-right: 16rpx;
+  vertical-align: top;
+}

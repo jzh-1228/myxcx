@@ -1,0 +1,22 @@
+<view wx:if="{{show}}" class="overlay" catchtap="onClose">
+  <view class="sheet" catchtap="noop">
+    <view class="title">导出</view>
+    <view class="opt box" bindtap="onSave">
+      <view class="icon box"></view>
+      <text>保存相册</text>
+    </view>
+    <view class="opt box" bindtap="onHd">
+      <view class="icon box"></view>
+      <text>高清导出</text>
+    </view>
+    <view class="opt box" bindtap="onShare">
+      <view class="icon box"></view>
+      <text>分享</text>
+    </view>
+    <view class="opt box" bindtap="onSaveId">
+      <view class="icon box"></view>
+      <text>另存证件照</text>
+    </view>
+    <view class="cancel" bindtap="onClose">取消</view>
+  </view>
+</view>

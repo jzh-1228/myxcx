@@ -1,0 +1,17 @@
+<view class="page">
+  <view class="row" bindtap="onQuality">
+    <text>导出清晰度默认</text>
+    <text class="value">{{qualityText}} ›</text>
+  </view>
+  <view class="row">
+    <text>版本</text>
+    <text class="value">0.1.0-skeleton</text>
+  </view>
+  <view class="row">
+    <text>关于</text>
+    <text class="value">最美证件照 · 全能修图骨架</text>
+  </view>
+  <view class="hint label-sm">
+    当前为骨架版本。美颜 / 滤镜 / AI 均为桩接口，不绑定任何厂商。
+  </view>
+</view>

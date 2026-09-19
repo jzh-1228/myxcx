@@ -1,0 +1,69 @@
+{
+  "pages": [
+    "pages/retouch/retouch",
+    "pages/create/create",
+    "pages/idphoto/idphoto",
+    "pages/mine/mine",
+    "pages/editor/editor",
+    "pages/works/works",
+    "pages/drafts/drafts",
+    "pages/settings/settings",
+    "pages/privacy/privacy"
+  ],
+  "window": {
+    "navigationBarTitleText": "最美证件照",
+    "navigationBarBackgroundColor": "#f5f5f5",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#ffffff",
+    "backgroundTextStyle": "light"
+  },
+  "tabBar": {
+    "color": "#888888",
+    "selectedColor": "#222222",
+    "backgroundColor": "#f5f5f5",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/retouch/retouch",
+        "text": "修图",
+        "iconPath": "assets/tab/retouch.png",
+        "selectedIconPath": "assets/tab/retouch-active.png"
+      },
+      {
+        "pagePath": "pages/create/create",
+        "text": "创作",
+        "iconPath": "assets/tab/create.png",
+        "selectedIconPath": "assets/tab/create-active.png"
+      },
+      {
+        "pagePath": "pages/idphoto/idphoto",
+        "text": "证件照",
+        "iconPath": "assets/tab/idphoto.png",
+        "selectedIconPath": "assets/tab/idphoto-active.png"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的",
+        "iconPath": "assets/tab/mine.png",
+        "selectedIconPath": "assets/tab/mine-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents",
+  "permission": {
+    "scope.camera": {
+      "desc": "用于拍照后进入全能修图编辑器"
+    },
+    "scope.writePhotosAlbum": {
+      "desc": "用于将修好的照片保存到系统相册"
+    }
+  },
+  "usingComponents": {
+    "slider-row": "/components/slider-row/slider-row",
+    "spec-bar": "/components/spec-bar/spec-bar",
+    "export-sheet": "/components/export-sheet/export-sheet",
+    "placeholder-box": "/components/placeholder-box/placeholder-box"
+  }
+}

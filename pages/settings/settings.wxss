@@ -1,0 +1,24 @@
+.page {
+  padding: 16rpx 32rpx;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx 0;
+  border-bottom: 2rpx solid #eee;
+  font-size: 26rpx;
+}
+
+.value {
+  color: #888;
+  font-size: 24rpx;
+  margin-left: 24rpx;
+  text-align: right;
+}
+
+.hint {
+  margin-top: 32rpx;
+  line-height: 1.6;
+}

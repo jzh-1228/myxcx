@@ -1,0 +1,12 @@
+<view class="page">
+  <view wx:if="{{!works.length}}" class="empty">
+    <placeholder-box text="暂无作品" sub="导出保存后会出现在这里" box-style="width:240rpx;height:240rpx;" />
+  </view>
+  <view wx:else class="grid">
+    <view wx:for="{{works}}" wx:key="id" class="card">
+      <image wx:if="{{item.imagePath}}" class="thumb" src="{{item.imagePath}}" mode="aspectFill" />
+      <placeholder-box wx:else text="预览图" box-style="width:100%;height:220rpx;" />
+      <view class="label-sm">{{item.timeText}}</view>
+    </view>
+  </view>
+</view>
