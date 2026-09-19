@@ -10,12 +10,20 @@ const {
 } = require('../../constants/editor');
 const { BG_PRESETS, nameToHex, hexToName, normalizeHex } = require('../../constants/matting');
 const { findSpec, displaySpecName } = require('../../constants/specs');
+const {
+  KB_PRESETS,
+  DEFAULT_TARGET_KB,
+  DISCLAIMER,
+  findPreset
+} = require('../../constants/export');
 const storage = require('../../utils/storage');
 const { getStatusBarHeight, toast } = require('../../utils/system');
 const { takeEditorSession } = require('../../utils/session');
 const { isConfigured } = require('../../utils/matting-config');
 const ai = require('../../services/ai');
 const exportService = require('../../services/export');
+const compress = require('../../services/compress');
+const audit = require('../../services/audit');
 const {
   MODE_COMPLIANCE,
   MODE_BEAUTY,
@@ -71,6 +79,7 @@ Page({
     mode: 'portrait',
     modes: EDITOR_MODES,
     specContext: null,
+    hasSpec: false,
     specCollapsed: false,
     comparing: false,
     showExport: false,
@@ -105,7 +114,24 @@ Page({
     aiCaps: AI_CAPABILITIES,
     aiCap: '',
     history: [],
-    historyIndex: -1
+    historyIndex: -1,
+    exportPreset: '50',
+    exportCustomKb: '',
+    exportTargetKb: DEFAULT_TARGET_KB,
+    exportCurrentKbText: '',
+    exportPreviewText: '',
+    exportPreviewPath: '',
+    exportPreviewKb: 0,
+    exportPreviewQuality: 0,
+    exportPreviewWidth: 0,
+    exportPreviewHeight: 0,
+    exportCompressed: false,
+    exportBusy: false,
+    auditItems: [],
+    auditSummary: '',
+    auditLevel: '',
+    showAuditRestore: false,
+    auditDisclaimer: DISCLAIMER
   },
 
   onLoad(query) {
@@ -150,6 +176,7 @@ Page({
       draftId,
       mode,
       specContext,
+      hasSpec: !!specContext,
       canvasHint: canvasHint(mode, specContext),
       beautyMode: defaultEditorMode(!!specContext),
       beautyBasePath: session.beautyBasePath || (draft && draft.beautyBasePath) || session.imagePath || imagePath,
@@ -157,6 +184,12 @@ Page({
     };
     next.portraitSliders = skinSliderList(next.beautyMode);
     next.beautyMax = next.beautyMode === MODE_COMPLIANCE ? 35 : 70;
+    const savedKb = storage.getSettings().exportTargetKb || DEFAULT_TARGET_KB;
+    const preset = findPreset(savedKb);
+    next.exportTargetKb = preset.id === 'custom' ? savedKb : preset.kb || DEFAULT_TARGET_KB;
+    next.exportPreset = preset.id;
+    next.exportCustomKb = preset.id === 'custom' ? String(savedKb) : '';
+    next.auditDisclaimer = DISCLAIMER;
 
     if (mode === 'portrait') {
       const chip = findChip(sub || 'skin');
@@ -231,6 +264,7 @@ Page({
       createTool: state.createTool,
       aiCap: state.aiCap,
       specContext: state.specContext,
+      hasSpec: !!state.specContext,
       imagePath: state.imagePath,
       sourcePath: state.sourcePath,
       mattePath: state.mattePath,
@@ -327,10 +361,239 @@ Page({
 
   onExport() {
     this.setData({ showExport: true });
+    this.refreshExportMeasure();
   },
 
   onCloseExport() {
     this.setData({ showExport: false });
+  },
+
+  currentExportSliders() {
+    return slidersFromList(this.data.portraitSliders);
+  },
+
+  resolveTargetKb() {
+    if (this.data.exportPreset === 'custom') {
+      return compress.parseTargetKb(this.data.exportCustomKb);
+    }
+    const preset = KB_PRESETS.find((item) => item.id === this.data.exportPreset);
+    return (preset && preset.kb) || this.data.exportTargetKb || DEFAULT_TARGET_KB;
+  },
+
+  persistTargetKb(kb) {
+    if (!kb) return;
+    storage.saveSettings({ exportTargetKb: kb });
+  },
+
+  compressPayload() {
+    return {
+      imagePath: this.data.imagePath,
+      targetKb: this.resolveTargetKb(),
+      needAlpha: !!(this.data.mattePath && !this.data.bgHex),
+      hasMatte: !!this.data.mattePath,
+      bgHex: this.data.bgHex,
+      spec: this.data.specContext
+    };
+  },
+
+  refreshExportMeasure() {
+    const path = this.data.imagePath;
+    if (!path) {
+      this.setData({ exportCurrentKbText: '无图片', exportPreviewText: '' });
+      return;
+    }
+    compress.measureImage(path).then((info) => {
+      this.setData({
+        exportCurrentKbText: info.kb ? compress.formatKb(info.kb) : '未知'
+      });
+    });
+  },
+
+  applyCompressResult(result, fromPreview) {
+    const q = result.quality != null ? compress.qualityPercent(result.quality) : '';
+    const fmt = result.format === 'png' ? 'PNG' : result.format === 'jpeg' ? 'JPEG' : '原文件';
+    const previewText = result.keptAlpha
+      ? `预览 ${compress.formatKb(result.kb)} · ${fmt}`
+      : `预览 ${compress.formatKb(result.kb)} · ${fmt}${q ? ' ' + q : ''}`;
+    this.setData({
+      exportPreviewPath: result.filePath,
+      exportPreviewKb: result.kb,
+      exportPreviewQuality: result.quality || 0,
+      exportPreviewWidth: result.width || 0,
+      exportPreviewHeight: result.height || 0,
+      exportPreviewText: previewText,
+      exportCompressed: true,
+      exportTargetKb: result.targetKb || this.resolveTargetKb(),
+      exportBusy: false
+    });
+    if (fromPreview) {
+      if (result.metTarget) {
+        toast(`预览 ${compress.formatKb(result.kb)}`, 'success');
+      } else {
+        toast(result.message || `预览 ${compress.formatKb(result.kb)}（未达目标）`);
+      }
+    }
+    return result;
+  },
+
+  runCompress(fromPreview) {
+    const path = this.data.imagePath;
+    if (!path) {
+      return Promise.reject({ code: 'NO_IMAGE', message: '当前为占位画布，没有可导出的图片' });
+    }
+    if (this.data.exportBusy) {
+      return Promise.reject({ code: 'BUSY', message: '正在处理' });
+    }
+    const targetKb = this.resolveTargetKb();
+    this.persistTargetKb(targetKb);
+    this.setData({ exportBusy: true, exportTargetKb: targetKb });
+    wx.showLoading({ title: fromPreview ? '预览压缩中' : '压缩导出中', mask: true });
+    return exportService
+      .exportImage(this.compressPayload())
+      .then((result) => {
+        wx.hideLoading();
+        return this.applyCompressResult(result, fromPreview);
+      })
+      .catch((err) => {
+        wx.hideLoading();
+        this.setData({ exportBusy: false });
+        throw err;
+      });
+  },
+
+  auditPayload(result) {
+    const measured = result || {};
+    return {
+      imagePath: measured.filePath || this.data.imagePath,
+      width: measured.width,
+      height: measured.height,
+      spec: this.data.specContext,
+      hasMatte: !!this.data.mattePath,
+      bgHex: this.data.bgHex,
+      bytes: measured.bytes,
+      targetKb: this.resolveTargetKb(),
+      compressed: !!this.data.exportCompressed,
+      sliders: this.currentExportSliders(),
+      beautyMode: this.data.beautyMode
+    };
+  },
+
+  applyAuditReport(report) {
+    this.setData({
+      auditItems: report.items || [],
+      auditSummary: (report.summary && report.summary.text) || '',
+      auditLevel: (report.summary && report.summary.level) || '',
+      showAuditRestore: !!report.beautyOverCap,
+      auditDisclaimer: report.disclaimer || DISCLAIMER
+    });
+    return report;
+  },
+
+  runAudit(afterCompress) {
+    const path = this.data.imagePath;
+    if (!path) {
+      toast('当前为占位画布，没有可检查的图片');
+      return Promise.resolve();
+    }
+    const targetKb = this.resolveTargetKb();
+    this.persistTargetKb(targetKb);
+    wx.showLoading({ title: '过审检查中', mask: true });
+    const ready = afterCompress
+      ? Promise.resolve(afterCompress)
+      : this.data.exportCompressed && this.data.exportPreviewPath
+        ? Promise.resolve({
+            filePath: this.data.exportPreviewPath,
+            bytes: Math.round((this.data.exportPreviewKb || 0) * 1024),
+            width: this.data.exportPreviewWidth,
+            height: this.data.exportPreviewHeight
+          })
+        : compress.measureImage(path);
+
+    return ready
+      .then((measured) => {
+        const payload = this.auditPayload(
+          afterCompress ||
+            (measured.filePath
+              ? measured
+              : {
+                  filePath: path,
+                  bytes: measured.bytes,
+                  width: measured.width,
+                  height: measured.height
+                })
+        );
+        if (!payload.width && measured.width) payload.width = measured.width;
+        if (!payload.height && measured.height) payload.height = measured.height;
+        return audit.inspectAndEvaluate(payload);
+      })
+      .then((report) => {
+        wx.hideLoading();
+        this.applyAuditReport(report);
+        return report;
+      })
+      .catch((err) => {
+        wx.hideLoading();
+        toast((err && err.message) || '过审检查失败');
+      });
+  },
+
+  onExportPreset(e) {
+    const id = (e.detail && e.detail.id) || '50';
+    const preset = KB_PRESETS.find((item) => item.id === id) || KB_PRESETS[1];
+    const next = {
+      exportPreset: preset.id,
+      exportCompressed: false,
+      exportPreviewPath: '',
+      exportPreviewText: '',
+      exportPreviewWidth: 0,
+      exportPreviewHeight: 0
+    };
+    if (preset.id !== 'custom') {
+      next.exportTargetKb = preset.kb;
+      this.persistTargetKb(preset.kb);
+    }
+    this.setData(next);
+  },
+
+  onExportCustom(e) {
+    const value = (e.detail && e.detail.value) || '';
+    this.setData({
+      exportCustomKb: value,
+      exportTargetKb: compress.parseTargetKb(value),
+      exportCompressed: false,
+      exportPreviewPath: '',
+      exportPreviewText: '',
+      exportPreviewWidth: 0,
+      exportPreviewHeight: 0
+    });
+  },
+
+  onExportPreview() {
+    this.runCompress(true).catch((err) => {
+      if (err && err.code === 'BUSY') return;
+      toast((err && err.message) || '压缩失败');
+    });
+  },
+
+  onExportAudit() {
+    this.setData({ showExport: true });
+    this.runAudit();
+  },
+
+  onRestoreCompliance() {
+    this.setData({
+      beautyMode: MODE_COMPLIANCE,
+      beautyMax: 35,
+      portraitSub: 'skin',
+      portraitTitle: '美肤',
+      portraitSliders: skinSliderList(MODE_COMPLIANCE, slidersFromList(this.data.portraitSliders)),
+      mode: 'portrait'
+    });
+    toast('已恢复合规强度');
+    this.scheduleBeauty();
+    if (this.data.showExport) {
+      this.runAudit();
+    }
   },
 
   onMode(e) {
@@ -664,21 +927,14 @@ Page({
   },
 
   onSpecKb() {
-    const spec = this.data.specContext;
-    toast(spec ? `KB 检测桩：${spec.sizeText}` : 'KB 检测桩');
+    this.setData({ showExport: true });
+    this.refreshExportMeasure();
   },
 
   onSpecAudit() {
-    this.setData({
-      beautyMode: MODE_COMPLIANCE,
-      beautyMax: 35,
-      portraitSub: 'skin',
-      portraitTitle: '美肤',
-      portraitSliders: skinSliderList(MODE_COMPLIANCE, slidersFromList(this.data.portraitSliders)),
-      mode: 'portrait'
-    });
-    toast('合规模式：美颜已锁定弱档');
-    this.scheduleBeauty();
+    this.setData({ showExport: true });
+    this.refreshExportMeasure();
+    this.runAudit();
   },
 
   onExportSave() {
@@ -687,23 +943,60 @@ Page({
       toast('当前为占位画布，没有可保存的图片');
       return;
     }
-    exportService
-      .saveToAlbum(path)
-      .then(() => {
+    const finishSave = (result) => {
+      const filePath = (result && result.filePath) || path;
+      return exportService.saveToAlbum(filePath).then(() => {
         exportService.recordWork({
-          imagePath: path,
-          specContext: this.data.specContext
+          imagePath: filePath,
+          specContext: this.data.specContext,
+          kb: result && result.kb,
+          targetKb: result && result.targetKb,
+          metTarget: result && result.metTarget,
+          quality: result && result.quality
         });
         this.setData({ showExport: false });
-        toast('已保存到相册', 'success');
-      })
+        if (result && result.kb) {
+          if (result.metTarget) {
+            toast(`已保存 ${compress.formatKb(result.kb)}`, 'success');
+          } else {
+            wx.showModal({
+              title: '已保存（尽力压缩）',
+              content: `${result.message || ''} 实际 ${compress.formatKb(result.kb)}。${DISCLAIMER}`,
+              showCancel: false
+            });
+          }
+        } else {
+          toast('已保存到相册', 'success');
+        }
+      });
+    };
+
+    const cached =
+      this.data.exportCompressed &&
+      this.data.exportPreviewPath &&
+      this.data.exportTargetKb === this.resolveTargetKb();
+
+    const job = cached
+      ? Promise.resolve({
+          filePath: this.data.exportPreviewPath,
+          kb: this.data.exportPreviewKb,
+          targetKb: this.data.exportTargetKb,
+          metTarget: !this.data.exportTargetKb || this.data.exportPreviewKb <= this.data.exportTargetKb,
+          quality: this.data.exportPreviewQuality,
+          message: this.data.exportPreviewText
+        })
+      : this.runCompress(false);
+
+    job
+      .then(finishSave)
       .catch((err) => {
-        const msg = (err && err.errMsg) || '';
+        if (err && err.code === 'BUSY') return;
+        const msg = (err && (err.errMsg || err.message)) || '';
         if (msg.indexOf('auth') !== -1 || msg.indexOf('auth deny') !== -1) {
           wx.openSetting({});
           return;
         }
-        toast('保存失败');
+        toast(msg || '保存失败');
       });
   },
 

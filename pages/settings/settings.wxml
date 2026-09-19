@@ -55,13 +55,13 @@
 
   <view class="row">
     <text>版本</text>
-    <text class="value">0.3.0-beauty</text>
+    <text class="value">0.4.0-export</text>
   </view>
   <view class="row">
     <text>关于</text>
     <text class="value">最美证件照 · 全能修图</text>
   </view>
   <view class="hint label-sm">
-    抠图走 Hivision 兼容 API。弱美颜默认「本地轻处理」（离屏画布磨皮/提亮，会改像素）；若配置了 baseUrl 会先试 /beautify，没有该接口则回退本地。证件照默认合规弱档。未配置且画布不可用时会明确报错，不会假成功。
+    抠图走 Hivision 兼容 API。弱美颜默认「本地轻处理」。导出可设目标 KB（JPEG 画布二分质量），过审检查为本地预检，以受理机关要求为准。未配置且画布不可用时会明确报错，不会假成功。
   </view>
 </view>

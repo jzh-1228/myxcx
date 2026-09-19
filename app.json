@@ -64,6 +64,7 @@
     "slider-row": "/components/slider-row/slider-row",
     "spec-bar": "/components/spec-bar/spec-bar",
     "export-sheet": "/components/export-sheet/export-sheet",
+    "audit-list": "/components/audit-list/audit-list",
     "placeholder-box": "/components/placeholder-box/placeholder-box"
   }
 }

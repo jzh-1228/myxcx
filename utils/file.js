@@ -25,6 +25,54 @@ function writeBase64Image(base64, ext) {
   });
 }
 
+function getFileBytes(filePath) {
+  return new Promise((resolve, reject) => {
+    const fail = (err) => {
+      reject({
+        code: 'FILE_INFO_FAILED',
+        message: '无法读取文件大小',
+        cause: err
+      });
+    };
+    if (!filePath) {
+      fail({ message: 'empty path' });
+      return;
+    }
+    function fromBuffer() {
+      wx.getFileSystemManager().readFile({
+        filePath,
+        success(res) {
+          const data = res.data;
+          if (data && typeof data.byteLength === 'number') {
+            resolve(data.byteLength);
+            return;
+          }
+          if (typeof data === 'string') {
+            const padding = data.slice(-2) === '==' ? 2 : data.slice(-1) === '=' ? 1 : 0;
+            resolve(Math.max(0, Math.floor((data.length * 3) / 4) - padding));
+            return;
+          }
+          fail({ message: 'unknown data' });
+        },
+        fail
+      });
+    }
+    if (typeof wx.getFileInfo === 'function') {
+      wx.getFileInfo({
+        filePath,
+        success(res) {
+          resolve(Number(res.size) || 0);
+        },
+        fail() {
+          fromBuffer();
+        }
+      });
+      return;
+    }
+    fromBuffer();
+  });
+}
+
 function readFileBase64(filePath) {
   return new Promise((resolve, reject) => {
     wx.getFileSystemManager().readFile({
@@ -46,5 +94,6 @@ function readFileBase64(filePath) {
 
 module.exports = {
   writeBase64Image,
-  readFileBase64
+  readFileBase64,
+  getFileBytes
 };

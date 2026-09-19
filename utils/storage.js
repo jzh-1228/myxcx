@@ -81,6 +81,7 @@ function saveWork(partial) {
 
 const DEFAULT_SETTINGS = {
   exportQuality: 'standard',
+  exportTargetKb: 50,
   mattingProvider: '',
   mattingBaseUrl: '',
   mattingWebhookUrl: '',

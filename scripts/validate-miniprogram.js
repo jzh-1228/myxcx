@@ -47,6 +47,11 @@ const requiredRoots = [
   'services/beauty/http.js',
   'services/beauty/pixels.js',
   'constants/beauty.js',
+  'constants/export.js',
+  'services/compress.js',
+  'services/compress/search.js',
+  'services/audit.js',
+  'services/audit/checks.js',
   'utils/storage.js',
   'utils/navigate.js',
   'constants/editor.js',
@@ -103,6 +108,9 @@ global.wx = {
   uploadFile() {},
   request() {},
   getImageInfo() {},
+  getFileInfo(opts) {
+    if (opts && opts.success) opts.success({ size: 0 });
+  },
   createOffscreenCanvas() {
     return null;
   },
@@ -147,6 +155,8 @@ function walk(dir) {
       name === 'validate-miniprogram.js' ||
       name === 'test-matting.js' ||
       name === 'test-beauty.js' ||
+      name === 'test-compress.js' ||
+      name === 'test-audit.js' ||
       name === 'mock-hivision.js'
     ) {
       return;

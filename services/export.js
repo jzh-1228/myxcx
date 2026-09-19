@@ -1,4 +1,5 @@
 const storage = require('../utils/storage');
+const compress = require('./compress');
 
 function saveToAlbum(filePath) {
   if (!filePath) {
@@ -35,9 +36,21 @@ function recordWork(partial) {
   return storage.saveWork(partial);
 }
 
+function exportImage(payload) {
+  return compress.compressToTarget(payload || {});
+}
+
+function saveCompressed(payload) {
+  return exportImage(payload).then((result) =>
+    saveToAlbum(result.filePath).then(() => result)
+  );
+}
+
 module.exports = {
   saveToAlbum,
   exportHd,
   shareStub,
-  recordWork
+  recordWork,
+  exportImage,
+  saveCompressed
 };
