@@ -6,14 +6,18 @@ const {
   ADJUST_SLIDERS,
   CREATE_TOOLS,
   CREATE_TEMPLATES,
-  AI_CAPABILITIES,
-  BG_COLORS
+  AI_CAPABILITIES
 } = require('../../constants/editor');
+const { BG_PRESETS, nameToHex, hexToName, normalizeHex } = require('../../constants/matting');
 const { findSpec, displaySpecName } = require('../../constants/specs');
 const storage = require('../../utils/storage');
 const { getStatusBarHeight, toast } = require('../../utils/system');
+const { takeEditorSession } = require('../../utils/session');
+const { isConfigured } = require('../../utils/matting-config');
 const ai = require('../../services/ai');
 const exportService = require('../../services/export');
+const matting = require('../../services/matting');
+const { notConfigured } = require('../../services/matting/errors');
 
 function clone(obj) {
   return JSON.parse(JSON.stringify(obj));
@@ -35,6 +39,20 @@ function canvasHint(mode, spec) {
   return map[mode] || '预览图';
 }
 
+function editSheetTitle(editTool) {
+  if (editTool === 'adjust') return '调节';
+  if (editTool === 'matting') return '抠图 / 换底';
+  return '编辑工具';
+}
+
+function safeNameToHex(name) {
+  try {
+    return nameToHex(name);
+  } catch (e) {
+    return '';
+  }
+}
+
 Page({
   data: {
     statusBarHeight: 20,
@@ -54,8 +72,17 @@ Page({
     filters: FILTERS,
     filterId: 'none',
     filterStrength: 70,
+    sourcePath: '',
+    mattePath: '',
+    bgHex: '',
+    customBg: false,
+    mattingBusy: false,
+    showHexDialog: false,
+    hexDraft: '',
+    bgPresets: BG_PRESETS,
     editTools: EDIT_TOOLS,
     editTool: '',
+    editSheetTitle: '编辑工具',
     adjustSliders: clone(ADJUST_SLIDERS),
     createTools: CREATE_TOOLS,
     createTool: 'template',
@@ -71,6 +98,8 @@ Page({
     const mode = query.mode || 'portrait';
     const sub = query.sub || '';
     const draftId = query.draftId || '';
+    const session = takeEditorSession() || {};
+    const draft = draftId ? storage.getDraft(draftId) : null;
     let specContext = null;
 
     if (query.specId) {
@@ -85,9 +114,24 @@ Page({
       };
     }
 
+    const sourcePath = session.sourcePath || (draft && draft.sourcePath) || imagePath;
+    const mattePath = session.mattePath || (draft && draft.mattePath) || '';
+    let bgHex = session.bgHex || (draft && draft.bgHex) || '';
+    if (!bgHex && specContext) {
+      try {
+        bgHex = nameToHex(specContext.bgColor);
+      } catch (e) {
+        bgHex = '';
+      }
+    }
+
     const next = {
       statusBarHeight: getStatusBarHeight(),
-      imagePath,
+      imagePath: session.imagePath || imagePath,
+      sourcePath,
+      mattePath,
+      bgHex,
+      customBg: !!(bgHex && !BG_PRESETS.some((item) => item.hex === bgHex)),
       draftId,
       mode,
       specContext,
@@ -103,14 +147,23 @@ Page({
       next.filterId = sub || 'none';
     } else if (mode === 'edit') {
       next.editTool = sub || '';
+      next.editSheetTitle = editSheetTitle(sub || '');
     } else if (mode === 'create') {
       next.createTool = sub || 'template';
     } else if (mode === 'ai') {
       next.aiCap = sub || '';
     }
 
+    const shouldAuto =
+      query.autoMatte === '1' ||
+      session.autoMatte ||
+      sub === 'matting';
+
     this.setData(next, () => {
       this.pushHistory();
+      if (shouldAuto && next.imagePath && !mattePath) {
+        this.runMatte();
+      }
     });
   },
 
@@ -126,7 +179,11 @@ Page({
       adjustSliders: d.adjustSliders,
       createTool: d.createTool,
       aiCap: d.aiCap,
-      specContext: d.specContext
+      specContext: d.specContext,
+      imagePath: d.imagePath,
+      sourcePath: d.sourcePath,
+      mattePath: d.mattePath,
+      bgHex: d.bgHex
     };
   },
 
@@ -144,6 +201,12 @@ Page({
       createTool: state.createTool,
       aiCap: state.aiCap,
       specContext: state.specContext,
+      imagePath: state.imagePath,
+      sourcePath: state.sourcePath,
+      mattePath: state.mattePath,
+      bgHex: state.bgHex || '',
+      customBg: !!(state.bgHex && !BG_PRESETS.some((item) => item.hex === state.bgHex)),
+      editSheetTitle: editSheetTitle(state.editTool),
       canvasHint: canvasHint(state.mode, state.specContext)
     });
   },
@@ -165,6 +228,9 @@ Page({
     storage.saveDraft({
       id: this.data.draftId || undefined,
       imagePath: this.data.imagePath,
+      sourcePath: this.data.sourcePath,
+      mattePath: this.data.mattePath,
+      bgHex: this.data.bgHex,
       mode: this.data.mode,
       sub: this.currentSub(),
       specContext: this.data.specContext
@@ -193,12 +259,14 @@ Page({
   },
 
   onCompare() {
-    const comparing = !this.data.comparing;
-    this.setData({ comparing });
-    if (comparing) {
-      toast('对比为桩：尚未接入原图分层');
+    if (!this.data.sourcePath) {
+      toast('没有原图可对比');
+      return;
     }
+    this.setData({ comparing: !this.data.comparing });
   },
+
+  noop() {},
 
   onUndo() {
     if (this.data.historyIndex <= 0) {
@@ -274,11 +342,144 @@ Page({
 
   onEditTool(e) {
     const id = e.currentTarget.dataset.id;
-    this.setData({ editTool: id });
+    this.setData({
+      editTool: id,
+      editSheetTitle: editSheetTitle(id)
+    });
     this.pushHistory();
+    if (id === 'matting') {
+      return;
+    }
     if (id !== 'adjust') {
       toast(`编辑桩：${id}，算法未接入`);
     }
+  },
+
+  onRunMatte() {
+    this.runMatte();
+  },
+
+  runMatte() {
+    const source = this.data.sourcePath || this.data.imagePath;
+    if (!source) {
+      toast('请先导入照片');
+      return;
+    }
+    if (this.data.mattingBusy) return;
+    if (!isConfigured()) {
+      matting.showError(notConfigured());
+      return;
+    }
+    this.setData({ mattingBusy: true, mode: 'edit', editTool: 'matting', editSheetTitle: editSheetTitle('matting') });
+    wx.showLoading({ title: '抠图中', mask: true });
+    const bgHex = this.data.bgHex || (this.data.specContext ? safeNameToHex(this.data.specContext.bgColor) : '');
+    matting
+      .matte({ imagePath: source })
+      .then((res) => {
+        if (!bgHex) {
+          return { mattePath: res.mattePath, imagePath: res.mattePath, colorHex: '' };
+        }
+        return matting.addBackground({ mattePath: res.mattePath, colorHex: bgHex }).then((bg) => ({
+          mattePath: res.mattePath,
+          imagePath: bg.imagePath,
+          colorHex: bg.colorHex
+        }));
+      })
+      .then((res) => {
+        wx.hideLoading();
+        this.setData({
+          mattingBusy: false,
+          sourcePath: source,
+          mattePath: res.mattePath,
+          imagePath: res.imagePath,
+          bgHex: res.colorHex || this.data.bgHex,
+          comparing: false
+        });
+        this.pushHistory();
+        toast('抠图完成', 'success');
+      })
+      .catch((err) => {
+        wx.hideLoading();
+        this.setData({ mattingBusy: false });
+        matting.showError(err);
+      });
+  },
+
+  onBgPreset(e) {
+    this.applyBackground(e.currentTarget.dataset.hex);
+  },
+
+  onCustomBg() {
+    this.setData({
+      showHexDialog: true,
+      hexDraft: this.data.customBg ? this.data.bgHex : ''
+    });
+  },
+
+  onHexDraft(e) {
+    this.setData({ hexDraft: e.detail.value || '' });
+  },
+
+  onCancelHex() {
+    this.setData({ showHexDialog: false });
+  },
+
+  onConfirmHex() {
+    try {
+      const hex = normalizeHex(this.data.hexDraft);
+      this.setData({ showHexDialog: false });
+      this.applyBackground(hex);
+    } catch (err) {
+      toast(err.message || '底色格式不正确');
+    }
+  },
+
+  applyBackground(hex) {
+    const source = this.data.sourcePath || this.data.imagePath;
+    if (!source) {
+      toast('请先导入照片');
+      return;
+    }
+    if (this.data.mattingBusy) return;
+    let colorHex;
+    try {
+      colorHex = normalizeHex(hex);
+    } catch (err) {
+      toast(err.message);
+      return;
+    }
+    this.setData({ mattingBusy: true });
+    wx.showLoading({ title: '换底中', mask: true });
+    matting
+      .replaceBackground({
+        imagePath: source,
+        sourcePath: source,
+        mattePath: this.data.mattePath,
+        colorHex
+      })
+      .then((res) => {
+        wx.hideLoading();
+        const specContext = this.data.specContext
+          ? Object.assign({}, this.data.specContext, { bgColor: hexToName(colorHex) })
+          : this.data.specContext;
+        this.setData({
+          mattingBusy: false,
+          sourcePath: res.sourcePath,
+          mattePath: res.mattePath,
+          imagePath: res.imagePath,
+          bgHex: res.colorHex,
+          customBg: !BG_PRESETS.some((item) => item.hex === res.colorHex),
+          specContext,
+          comparing: false
+        });
+        this.pushHistory();
+        toast('已换底', 'success');
+      })
+      .catch((err) => {
+        wx.hideLoading();
+        this.setData({ mattingBusy: false });
+        matting.showError(err);
+      });
   },
 
   onCreateTool(e) {
@@ -314,13 +515,15 @@ Page({
   },
 
   onSpecColor() {
+    const labels = BG_PRESETS.map((item) => `${item.name}底`).concat(['自定义']);
     wx.showActionSheet({
-      itemList: BG_COLORS.map((c) => `${c}底`),
+      itemList: labels,
       success: (res) => {
-        const bgColor = BG_COLORS[res.tapIndex];
-        const specContext = Object.assign({}, this.data.specContext, { bgColor });
-        this.setData({ specContext });
-        this.pushHistory();
+        if (res.tapIndex >= BG_PRESETS.length) {
+          this.onCustomBg();
+          return;
+        }
+        this.applyBackground(BG_PRESETS[res.tapIndex].hex);
       }
     });
   },

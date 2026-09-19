@@ -22,14 +22,26 @@
     />
 
     <view class="ed-canvas">
-      <image wx:if="{{imagePath}}" class="canvas-image" src="{{imagePath}}" mode="aspectFit" />
+      <image
+        wx:if="{{comparing && sourcePath}}"
+        class="canvas-image"
+        src="{{sourcePath}}"
+        mode="aspectFit"
+      />
+      <image
+        wx:elif="{{imagePath}}"
+        class="canvas-image {{mattePath && !bgHex ? 'is-matte' : ''}}"
+        src="{{imagePath}}"
+        mode="aspectFit"
+      />
       <placeholder-box
         wx:else
         text="预览图"
         sub="{{canvasHint}}"
         box-style="width:100%;height:100%;min-height:320rpx;"
       />
-      <view wx:if="{{comparing}}" class="compare-mask">原图对比（桩）</view>
+      <view wx:if="{{comparing}}" class="compare-mask">原图</view>
+      <view wx:if="{{mattingBusy}}" class="busy-mask">抠图处理中…</view>
     </view>
 
     <scroll-view wx:if="{{mode === 'portrait'}}" class="sec-chips" scroll-x enable-flex>
@@ -79,7 +91,7 @@
     </block>
 
     <block wx:elif="{{mode === 'edit'}}">
-      <view class="sheet-title">{{editTool === 'adjust' ? '调节' : '编辑工具'}}</view>
+      <view class="sheet-title">{{editSheetTitle}}</view>
       <view class="ed-tools">
         <view
           wx:for="{{editTools}}"
@@ -101,6 +113,21 @@
           value="{{item.value}}"
           bindchange="onSliderChange"
         />
+      </block>
+      <block wx:if="{{editTool === 'matting'}}">
+        <view class="matting-status">{{mattePath ? '已生成透明图层，可换底' : '尚未抠图'}}</view>
+        <view class="btn btn-primary matting-btn" bindtap="onRunMatte">{{mattePath ? '重新抠图' : '开始抠图'}}</view>
+        <view class="sheet-title bg-title">换底色</view>
+        <view class="bg-row">
+          <view
+            wx:for="{{bgPresets}}"
+            wx:key="id"
+            class="chip {{bgHex === item.hex ? 'selected' : ''}}"
+            data-hex="{{item.hex}}"
+            bindtap="onBgPreset"
+          >{{item.name}}</view>
+          <view class="chip {{customBg ? 'selected' : ''}}" bindtap="onCustomBg">自定义</view>
+        </view>
       </block>
     </block>
 
@@ -164,4 +191,20 @@
     bindshare="onExportShare"
     bindsaveid="onExportSaveId"
   />
+
+  <view wx:if="{{showHexDialog}}" class="hex-overlay" catchtap="onCancelHex">
+    <view class="hex-dialog" catchtap="noop">
+      <view class="sheet-title">自定义底色</view>
+      <input
+        class="hex-input"
+        placeholder="如 FFFFFF 或 #438EDB"
+        value="{{hexDraft}}"
+        bindinput="onHexDraft"
+      />
+      <view class="hex-actions">
+        <view class="btn-ghost" bindtap="onCancelHex">取消</view>
+        <view class="btn btn-primary" bindtap="onConfirmHex">应用</view>
+      </view>
+    </view>
+  </view>
 </view>

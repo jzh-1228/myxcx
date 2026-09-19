@@ -3,15 +3,45 @@
     <text>导出清晰度默认</text>
     <text class="value">{{qualityText}} ›</text>
   </view>
+
+  <view class="block-title">抠图服务</view>
+  <view class="row" bindtap="onProvider">
+    <text>Provider</text>
+    <text class="value">{{providerText}} ›</text>
+  </view>
+  <view class="field">
+    <text class="field-label">Hivision baseUrl</text>
+    <input
+      class="field-input"
+      placeholder="https://your-host:8080"
+      value="{{mattingBaseUrl}}"
+      bindinput="onBaseUrl"
+    />
+  </view>
+  <view class="field" wx:if="{{provider === 'webhook'}}">
+    <text class="field-label">Webhook URL</text>
+    <input
+      class="field-input"
+      placeholder="https://your-webhook/matting"
+      value="{{mattingWebhookUrl}}"
+      bindinput="onWebhookUrl"
+    />
+  </view>
+  <view class="row" bindtap="onToggleAuto">
+    <text>证件照进入时自动抠图换底</text>
+    <text class="value">{{autoMatteText}}</text>
+  </view>
+  <view class="btn btn-primary save-btn" bindtap="onSaveMatting">保存抠图配置</view>
+
   <view class="row">
     <text>版本</text>
-    <text class="value">0.1.0-skeleton</text>
+    <text class="value">0.2.0-matting</text>
   </view>
   <view class="row">
     <text>关于</text>
-    <text class="value">最美证件照 · 全能修图骨架</text>
+    <text class="value">最美证件照 · 全能修图</text>
   </view>
   <view class="hint label-sm">
-    当前为骨架版本。美颜 / 滤镜 / AI 均为桩接口，不绑定任何厂商。
+    抠图默认走自托管 Hivision 兼容 API（/human_matting、/add_background、/idphoto）。未填写地址时会明确报错，不会假成功。AI 写真等仍为厂商无关桩。开发者工具请勾选「不校验合法域名」；正式版须把 HTTPS 域名加入 request 与 uploadFile 合法域名。
   </view>
 </view>

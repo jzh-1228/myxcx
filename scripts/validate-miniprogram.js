@@ -34,9 +34,14 @@ const requiredRoots = [
   'app.wxss',
   'project.config.json',
   'sitemap.json',
+  'config.js',
   'services/ai.js',
   'services/media.js',
   'services/export.js',
+  'services/matting.js',
+  'services/matting/hivision.js',
+  'services/matting/aliyun.js',
+  'services/matting/webhook.js',
   'utils/storage.js',
   'utils/navigate.js',
   'constants/editor.js',
@@ -74,17 +79,34 @@ if (project && !project.appid) {
   errors.push('project.config.json 缺少 appid');
 }
 
+const appInstance = { globalData: { editorSession: null } };
 global.wx = {
+  env: { USER_DATA_PATH: '/tmp' },
   getStorageSync() {
-    return [];
+    return {};
   },
   setStorageSync() {},
   showToast() {},
+  showModal() {},
+  showLoading() {},
+  hideLoading() {},
   navigateTo() {},
   navigateBack() {},
   switchTab() {},
   chooseMedia() {},
   saveImageToPhotosAlbum() {},
+  uploadFile() {},
+  request() {},
+  getFileSystemManager() {
+    return {
+      writeFile(opts) {
+        if (opts && opts.success) opts.success();
+      },
+      readFile(opts) {
+        if (opts && opts.success) opts.success({ data: '' });
+      }
+    };
+  },
   getSystemInfoSync() {
     return { statusBarHeight: 20 };
   },
@@ -92,7 +114,12 @@ global.wx = {
     return { statusBarHeight: 20 };
   }
 };
-global.App = function App() {};
+global.App = function App(opts) {
+  Object.assign(appInstance, opts || {});
+};
+global.getApp = function getApp() {
+  return appInstance;
+};
 global.Page = function Page() {};
 global.Component = function Component() {};
 
@@ -105,7 +132,10 @@ function walk(dir) {
       walk(abs);
       return;
     }
-    if (!name.endsWith('.js') || name === 'validate-miniprogram.js') return;
+    if (!name.endsWith('.js')) return;
+    if (name === 'validate-miniprogram.js' || name === 'test-matting.js' || name === 'mock-hivision.js') {
+      return;
+    }
     try {
       require(abs);
     } catch (e) {

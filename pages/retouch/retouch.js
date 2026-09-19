@@ -34,6 +34,9 @@ Page({
     if (!draft) return;
     openEditor({
       imagePath: draft.imagePath || '',
+      sourcePath: draft.sourcePath || draft.imagePath || '',
+      mattePath: draft.mattePath || '',
+      bgHex: draft.bgHex || '',
       mode: draft.mode || 'portrait',
       sub: draft.sub || 'skin',
       spec: draft.specContext || null,
@@ -62,8 +65,10 @@ Page({
       (payload) => {
         openEditor({
           imagePath: payload.imagePath,
+          sourcePath: payload.imagePath,
           mode: options.mode,
-          sub: options.sub
+          sub: options.sub,
+          autoMatte: options.sub === 'matting'
         });
       },
       { sourceType: options.sourceType }

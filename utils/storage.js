@@ -79,11 +79,19 @@ function saveWork(partial) {
   return item;
 }
 
+const DEFAULT_SETTINGS = {
+  exportQuality: 'standard',
+  mattingProvider: '',
+  mattingBaseUrl: '',
+  mattingWebhookUrl: '',
+  autoMatteIdPhoto: true
+};
+
 function getSettings() {
   try {
-    return wx.getStorageSync(KEYS.SETTINGS) || { exportQuality: 'standard' };
+    return Object.assign({}, DEFAULT_SETTINGS, wx.getStorageSync(KEYS.SETTINGS) || {});
   } catch (e) {
-    return { exportQuality: 'standard' };
+    return Object.assign({}, DEFAULT_SETTINGS);
   }
 }
 

@@ -123,7 +123,9 @@ const SHORTCUTS = [
   { id: 'portrait', name: 'AI写真', icon: 'AI', mode: 'ai', sub: 'generatePortrait' }
 ];
 
-const BG_COLORS = ['白', '蓝', '红'];
+const { BG_PRESETS } = require('./matting');
+
+const BG_COLORS = BG_PRESETS.map((item) => item.name);
 
 module.exports = {
   EDITOR_MODES,

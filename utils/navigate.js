@@ -1,4 +1,5 @@
 const storage = require('./storage');
+const { setEditorSession } = require('./session');
 
 function buildQuery(params) {
   return Object.keys(params)
@@ -14,27 +15,37 @@ function openEditor(options) {
     sub = '',
     spec = null,
     draftId = '',
-    persistDraft = true
+    persistDraft = true,
+    sourcePath = '',
+    mattePath = '',
+    bgHex = '',
+    autoMatte = false
   } = options || {};
 
   let id = draftId;
+  const draftFields = {
+    imagePath,
+    sourcePath: sourcePath || imagePath,
+    mattePath,
+    bgHex,
+    mode,
+    sub,
+    specContext: spec || null
+  };
   if (persistDraft && (imagePath || spec) && !draftId) {
-    const draft = storage.saveDraft({
-      imagePath,
-      mode,
-      sub,
-      specContext: spec || null
-    });
+    const draft = storage.saveDraft(draftFields);
     id = draft.id;
-  } else if (draftId && imagePath) {
-    storage.saveDraft({
-      id: draftId,
-      imagePath,
-      mode,
-      sub,
-      specContext: spec || null
-    });
+  } else if (draftId) {
+    storage.saveDraft(Object.assign({ id: draftId }, draftFields));
   }
+
+  setEditorSession({
+    sourcePath: sourcePath || imagePath,
+    mattePath,
+    imagePath,
+    bgHex,
+    autoMatte
+  });
 
   const query = buildQuery({
     image: imagePath,
@@ -45,7 +56,8 @@ function openEditor(options) {
     specName: spec && spec.name,
     canvasW: spec && spec.width,
     canvasH: spec && spec.height,
-    bg: spec && spec.bgColor
+    bg: spec && spec.bgColor,
+    autoMatte: autoMatte ? '1' : ''
   });
 
   wx.navigateTo({

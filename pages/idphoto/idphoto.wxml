@@ -33,7 +33,7 @@
     <view wx:if="{{!filtered.length}}" class="empty label-sm">没有匹配的规格</view>
 
     <view class="note-tag hint">
-      注：选择规格后打开「全量编辑器」并挂载顶部规格条
+      选择规格后进入同一套编辑器并挂载规格条。已配置抠图服务时会自动抠图并套用底色。
     </view>
   </view>
 </view>

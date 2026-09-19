@@ -1,8 +1,8 @@
 # 最美证件照
 
-微信小程序骨架：**全能修图**（对标醒图信息架构）。「最美证件照」是品牌名；证件照只是挂载在同一套全量编辑器上的规格场景，不是产品边界。
+微信小程序：**全能修图**（对标醒图信息架构）。「最美证件照」是品牌名；证件照只是挂载在同一套全量编辑器上的规格场景，不是产品边界。
 
-本仓库当前交付的是 **MVP / skeleton**：四 Tab + 一壳多态编辑器 + 证件照挂载路径可跑通。美颜、抠图、滤镜算法和 AI 厂商均未接入。
+当前版本在骨架之上接入了 **真实人像抠图 + 换底**（自托管 Hivision 兼容 HTTP）。美颜滑杆、滤镜 LUT、AI 写真等仍为桩。
 
 ## 在微信开发者工具中预览
 
@@ -13,7 +13,8 @@
    - 本地预览：可用「测试号」
    - 正式上传：把 `appid` 换成你在[微信公众平台](https://mp.weixin.qq.com/)注册的小程序 AppID
 4. 基础库建议 **2.10.4+**（工程里写的是 `3.7.0`）。勾选 ES6、增强编译后点编译。
-5. 真机预览需要扫码登录开发者工具；`wx.chooseMedia` / 保存相册在模拟器与真机权限提示可能不同。
+5. 本地调试抠图时，在开发者工具 **详情 → 本地设置** 勾选 **不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书**。
+6. 真机预览需要扫码登录开发者工具；`wx.chooseMedia` / 保存相册 / `wx.uploadFile` 在模拟器与真机权限提示可能不同。
 
 不需要 `npm install`。这是原生小程序（WXML + WXSS + JS + JSON），没有构建步骤。
 
@@ -31,20 +32,96 @@
 
 编辑器底栏（醒图同构）：**人像 | 滤镜 | 编辑 | 创作 | AI**。顶栏与画布共用，切换只换底部 Sheet。
 
-从证件照 Tab 选规格 → `wx.chooseMedia` → 打开同一编辑器并注入 `specContext`，顶部出现可折叠规格条（线框 I）。
+从证件照 Tab 选规格 → `wx.chooseMedia` → 同一编辑器注入 `specContext`。若已配置抠图服务，会先走 `/idphoto` + `/add_background` 再进入画布。
+
+## 人像抠图 + 换底（真实管线）
+
+默认 Provider 是 **HivisionIDPhotos 兼容 HTTP**，不绑定云厂商密钥。页面只调用 `services/matting.js` 门面。
+
+### 1. 用 Docker 跑 Hivision API
+
+```bash
+docker pull linzeyi/hivision_idphotos
+docker run -d -p 8080:8080 linzeyi/hivision_idphotos python3 deploy_api.py
+```
+
+服务起来后应能访问 `http://<主机>:8080`。接口约定见 [Hivision API 文档](https://github.com/Zeyi-Lin/HivisionIDPhotos/blob/master/docs/api_CN.md)：
+
+| 路径 | 用途 |
+|------|------|
+| `POST /human_matting` | RGB → RGBA 透明人像 |
+| `POST /add_background` | RGBA + HEX 底色 → 合成图 |
+| `POST /idphoto` | 按宽高校准的透明证件照 |
+
+没有 GPU、只想先打通小程序时，可用仓库自带 mock（返回一张真实 RGBA PNG，**不是假成功空响应**）：
+
+```bash
+node scripts/mock-hivision.js
+# http://127.0.0.1:8080
+```
+
+本机 Docker / mock 对**真机**不可达。真机请把服务放到有公网 HTTPS 的机器，或用内网穿透。
+
+### 2. 填写 baseUrl
+
+优先级：**我的 → 设置** 里保存的地址 > 根目录 `config.js` 的 `matting.baseUrl`。
+
+```js
+// config.js
+matting: {
+  provider: 'hivision',
+  baseUrl: 'https://your-hivision.example.com'
+}
+```
+
+或在小程序设置页填 `http://127.0.0.1:8080`（仅开发者工具 + 不校验域名）后点「保存抠图配置」。
+
+未配置时：点「开始抠图 / 换底 / 证件照自动换底」会 **Toast 说明怎么配**，不会静默假成功。
+
+### 3. 合法域名
+
+正式版必须在[微信公众平台](https://mp.weixin.qq.com/) → 开发 → 开发管理 → 开发设置 → **服务器域名** 添加该主机（**HTTPS**）：
+
+- **request 合法域名**
+- **uploadFile 合法域名**
+
+开发者工具可勾选「不校验合法域名」走本地 HTTP。
+
+小程序通过 `wx.uploadFile`（字段名 `input_image`）上传临时文件；失败时回退为读取 base64 + `wx.request` 表单字段 `input_image_base64`。
+
+### 4. 建议点检路径（抠图）
+
+1. 设置里填好 baseUrl 并保存。
+2. **修图** → 从相册导入 → 编辑器「编辑」→ **抠图** → 开始抠图，画布应变为透明人像（或已带默认底）。
+3. 换底色点 **白 / 蓝 / 红 / 自定义 HEX**，画布更新为合成图；顶栏「对比」可看原图。
+4. **证件照** → 一寸 → 选图：已配置时先自动抠图并套白底，规格条「底色」会再次请求换底。
+5. 清空 baseUrl 后再点抠图：必须出现配置说明 Toast。
+
+### 5. 其它 Provider
+
+| Provider | 行为 |
+|----------|------|
+| `hivision`（默认） | 真实 HTTP 客户端 |
+| `webhook` | 若填了 URL，POST JSON `{ action, imageBase64, color }`，期望返回 `{ status, image_base64 }` |
+| `aliyun` | **仅配置位**（`matting.aliyun.endpoint / accessKeyId / accessKeySecret`），不发请求、不放假密钥 |
+
+AI 生成类能力仍走 `services/ai.js` 桩，与抠图 Provider 分开。
 
 ## 目录
 
 ```
+config.js              抠图 baseUrl / Provider（无密钥）
 app.js / app.json / app.wxss
 project.config.json    AppID 占位 touristappid
-sitemap.json
-pages/                 页面
-components/            滑杆 / 规格条 / 导出 Sheet / 占位图
-utils/                 本地存储、跳转、格式化
-services/              AI / 选图 / 导出（AI 为桩）
-constants/             编辑器模式、规格库
-assets/tab/            TabBar 图标
+pages/
+components/
+utils/                 含 matting-config、本地文件、编辑器 session
+services/matting.js    抠图门面
+services/matting/      hivision / webhook / aliyun / parse
+services/ai.js         AI 生成桩（厂商无关）
+constants/
+scripts/mock-hivision.js
+scripts/test-matting.js
 ```
 
 ## 桩 vs 真实能力
@@ -52,31 +129,31 @@ assets/tab/            TabBar 图标
 | 能力 | 当前 | 后续怎么接 |
 |------|------|------------|
 | 相册 / 拍照 | `wx.chooseMedia` 真实调用 | 保持 |
-| 画布展示所选图 | 有路径则 `<image>`，否则占位 | 接入渲染管线 |
-| 最近草稿 / 作品 | `wx.setStorageSync` 本地桩 | 可换云端 |
-| 人像滑杆 / 滤镜缩略图 / 编辑工具格 | **仅 UI**，无美颜、无 LUT、无抠图算法 | 在编辑器状态上挂渲染 |
-| AI 写真 / 造型室 / 超清 / 扩图等 | `services/ai.js` **厂商无关 stub**，统一 `AI_STUB_NOT_WIRED` | 只改 service 实现，不要在页面写死供应商 |
-| 对比 / 撤销重做 | 状态栈桩 | 接图层/原图 |
-| 保存相册 | 有图则 `wx.saveImageToPhotosAlbum` | 导出前可接超分 |
+| 人像抠图 / 换底（白蓝红/自定义） | `services/matting.js` → Hivision HTTP | 可换 webhook / 自实现 aliyun |
+| 证件照自动换底 | 选图后 `/idphoto` + `/add_background` | 保持规格条换底 |
+| 画布 / 对比 | 展示合成图；对比显示原图 | — |
+| 最近草稿 / 作品 | `wx.setStorageSync` 本地 | 可换云端 |
+| 人像滑杆 / 滤镜 / 其它编辑工具 | **仅 UI** | 算法另接 |
+| AI 写真 / 造型室 / 超清 / 扩图 | `services/ai.js` 桩 | 只改 service，页面不写死厂商 |
+| 撤销重做 | 含抠图结果路径的状态栈 | — |
+| 保存相册 | 有图则 `wx.saveImageToPhotosAlbum` | — |
 | 高清导出 / 分享 | Toast 桩 | 接超分与分享图 |
-| 另存证件照 | 有规格则提示校验桩；无规格则回证件照 Tab | 接 KB / 排版 |
 | 会员 / 支付 | 「我的」占位 | 不在本期 |
 | Live / 视频 | 未做 | backlog |
 
-接入 AI 时：保持 `services/ai.js` 的函数签名（`generatePortrait`、`stylingRoom`、`instructEdit`、`referenceEdit`、`enhance`、`outpaint`、`styleTransfer` 等），不要把厂商 SDK 写进页面。
-
-## 建议点检路径
+## 建议点检路径（壳）
 
 1. 启动落在 **修图** Tab；底栏可切到创作 / 证件照 / 我的。
 2. 修图：相册或拍照 → 进入编辑器（默认人像 · 美肤滑杆）。
-3. 编辑器底栏切到滤镜 / 编辑 / 创作 / AI，底部 Sheet 应跟着变；顶栏导出打开 Sheet。
-4. 证件照：搜索或点「一寸」→ 选图 → 编辑器顶部出现规格条，可折叠，底栏仍是五态。
-5. 我的：作品 / 草稿 / 设置 / 隐私可进；开通会员为占位 Toast。
+3. 编辑器底栏切到滤镜 / 编辑 / 创作 / AI；编辑 → 抠图为真实管线，其余工具仍为桩。
+4. 证件照：搜索或点「一寸」→ 选图 → 规格条可折叠，底栏仍是五态。
+5. 我的：作品 / 草稿 / 设置 / 隐私可进；设置可保存抠图地址。
 
-## 本地结构校验（可选）
+## 本地校验
 
 ```bash
 node scripts/validate-miniprogram.js
+node scripts/test-matting.js
 ```
 
-检查 `app.json` 页面四件套、Tab 图标和 JSON 是否可解析。不能替代微信开发者工具编译。
+结构校验 + 颜色/响应解析 + mock HTTP。不能替代微信开发者工具编译与真机点检。
