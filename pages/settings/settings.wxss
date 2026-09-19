@@ -1,0 +1,52 @@
+.page {
+  padding: 16rpx 32rpx;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx 0;
+  border-bottom: 2rpx solid #eee;
+  font-size: 26rpx;
+}
+
+.value {
+  color: #888;
+  font-size: 24rpx;
+  margin-left: 24rpx;
+  text-align: right;
+}
+
+.hint {
+  margin-top: 32rpx;
+  line-height: 1.6;
+}
+
+.block-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  margin: 32rpx 0 8rpx;
+}
+
+.field {
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid #eee;
+}
+
+.field-label {
+  display: block;
+  font-size: 22rpx;
+  color: #888;
+  margin-bottom: 12rpx;
+}
+
+.field-input {
+  font-size: 26rpx;
+  height: 56rpx;
+}
+
+.save-btn {
+  margin: 24rpx 0;
+  display: block;
+}

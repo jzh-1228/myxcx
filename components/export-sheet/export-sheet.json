@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "audit-list": "/components/audit-list/audit-list"
+  }
+}

@@ -1,0 +1,67 @@
+<view class="page">
+  <view class="row" bindtap="onQuality">
+    <text>导出清晰度默认</text>
+    <text class="value">{{qualityText}} ›</text>
+  </view>
+
+  <view class="block-title">抠图服务</view>
+  <view class="row" bindtap="onProvider">
+    <text>Provider</text>
+    <text class="value">{{providerText}} ›</text>
+  </view>
+  <view class="field">
+    <text class="field-label">Hivision baseUrl</text>
+    <input
+      class="field-input"
+      placeholder="https://your-host:8080"
+      value="{{mattingBaseUrl}}"
+      bindinput="onBaseUrl"
+    />
+  </view>
+  <view class="field" wx:if="{{provider === 'webhook'}}">
+    <text class="field-label">Webhook URL</text>
+    <input
+      class="field-input"
+      placeholder="https://your-webhook/matting"
+      value="{{mattingWebhookUrl}}"
+      bindinput="onWebhookUrl"
+    />
+  </view>
+  <view class="row" bindtap="onToggleAuto">
+    <text>证件照进入时自动抠图换底</text>
+    <text class="value">{{autoMatteText}}</text>
+  </view>
+  <view class="btn btn-primary save-btn" bindtap="onSaveMatting">保存抠图配置</view>
+
+  <view class="block-title">弱美颜</view>
+  <view class="row" bindtap="onBeautyMode">
+    <text>默认美颜模式</text>
+    <text class="value">{{beautyModeText}} ›</text>
+  </view>
+  <view class="field">
+    <text class="field-label">美颜服务 baseUrl（可空，空则复用抠图地址并尝试 /beautify）</text>
+    <input
+      class="field-input"
+      placeholder="可留空，使用本地轻处理"
+      value="{{beautyBaseUrl}}"
+      bindinput="onBeautyBaseUrl"
+    />
+  </view>
+  <view class="row" bindtap="onToggleAutoBeauty">
+    <text>证件照抠图后自动弱美颜</text>
+    <text class="value">{{autoBeautyText}}</text>
+  </view>
+  <view class="btn btn-primary save-btn" bindtap="onSaveBeauty">保存美颜配置</view>
+
+  <view class="row">
+    <text>版本</text>
+    <text class="value">0.4.0-export</text>
+  </view>
+  <view class="row">
+    <text>关于</text>
+    <text class="value">最美证件照 · 全能修图</text>
+  </view>
+  <view class="hint label-sm">
+    抠图走 Hivision 兼容 API。弱美颜默认「本地轻处理」。导出可设目标 KB（JPEG 画布二分质量），过审检查为本地预检，以受理机关要求为准。未配置且画布不可用时会明确报错，不会假成功。
+  </view>
+</view>

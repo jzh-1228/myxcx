@@ -1,0 +1,65 @@
+<view wx:if="{{show}}" class="overlay" catchtap="onClose">
+  <view class="sheet" catchtap="noop">
+    <view class="title">导出</view>
+    <scroll-view scroll-y class="sheet-scroll">
+      <view class="sec-label">目标体积</view>
+      <view class="preset-row">
+        <view
+          wx:for="{{presets}}"
+          wx:key="id"
+          class="chip chip-sm {{presetId === item.id ? 'selected' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onPreset"
+        >{{item.label}}</view>
+      </view>
+      <view wx:if="{{presetId === 'custom'}}" class="custom-row">
+        <input
+          class="custom-input"
+          type="number"
+          placeholder="例如 80"
+          value="{{customKb}}"
+          bindinput="onCustom"
+        />
+        <text class="custom-unit">KB</text>
+      </view>
+      <view class="meta">
+        <text wx:if="{{currentKbText}}">当前 {{currentKbText}}</text>
+        <text wx:if="{{previewText}}"> · {{previewText}}</text>
+      </view>
+      <view wx:if="{{hasSpec}}" class="note">证件照导出按所选规格像素重编码（JPEG，透明底除外）。</view>
+      <view class="note">{{disclaimer}}</view>
+      <view class="action-row">
+        <view class="btn {{busy ? 'disabled' : ''}}" bindtap="onPreview">预览压缩</view>
+        <view class="btn btn-primary {{busy ? 'disabled' : ''}}" bindtap="onAudit">过审检查</view>
+      </view>
+
+      <audit-list
+        wx:if="{{auditItems.length}}"
+        items="{{auditItems}}"
+        summary="{{auditSummary}}"
+        level="{{auditLevel}}"
+        disclaimer="{{disclaimer}}"
+        show-restore="{{showRestore}}"
+        bindrestore="onRestore"
+      />
+
+      <view class="opt box" bindtap="onSave">
+        <view class="icon box"></view>
+        <text>保存相册</text>
+      </view>
+      <view class="opt box" bindtap="onHd">
+        <view class="icon box"></view>
+        <text>高清导出</text>
+      </view>
+      <view class="opt box" bindtap="onShare">
+        <view class="icon box"></view>
+        <text>分享</text>
+      </view>
+      <view class="opt box" bindtap="onSaveId">
+        <view class="icon box"></view>
+        <text>另存证件照</text>
+      </view>
+    </scroll-view>
+    <view class="cancel" bindtap="onClose">取消</view>
+  </view>
+</view>

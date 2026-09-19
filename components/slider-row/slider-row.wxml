@@ -1,0 +1,15 @@
+<view class="slider-row">
+  <text class="slider-label">{{label}}</text>
+  <slider
+    class="slider"
+    min="{{min}}"
+    max="{{max}}"
+    value="{{value}}"
+    activeColor="#333333"
+    backgroundColor="#dddddd"
+    block-size="16"
+    bindchange="onChange"
+    bindchanging="onChanging"
+  />
+  <text class="slider-val">{{value}}</text>
+</view>

@@ -1,0 +1,10 @@
+<view class="spec-bar {{collapsed ? 'collapsed' : ''}}">
+  <view class="chip chip-sm selected">{{title}}</view>
+  <view class="chip chip-sm" bindtap="onColor">底色</view>
+  <view class="chip chip-sm" bindtap="onKb">KB检测</view>
+  <view class="chip chip-sm" bindtap="onAudit">过审</view>
+  <view class="fold" bindtap="onToggle">{{collapsed ? '展开 ▸' : '折叠 ▾'}}</view>
+</view>
+<view wx:if="{{!collapsed}}" class="spec-extra">
+  <text>{{sizeText}} · 底色 {{bgColor}}</text>
+</view>

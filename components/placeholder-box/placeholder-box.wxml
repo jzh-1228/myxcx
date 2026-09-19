@@ -1,0 +1,4 @@
+<view class="placeholder {{round ? 'round' : ''}}" style="{{boxStyle}}">
+  <text>{{text}}</text>
+  <text wx:if="{{sub}}" class="sub">{{sub}}</text>
+</view>

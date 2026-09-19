@@ -1,0 +1,57 @@
+<view class="page">
+  <view class="app-header">
+    <view class="app-name">最美证件照</view>
+    <view class="app-sub">全能修图</view>
+  </view>
+
+  <view class="cta-row">
+    <view class="cta-big box" bindtap="onAlbum">
+      <view class="cta-icon"></view>
+      <text>从相册导入</text>
+    </view>
+    <view class="cta-big box" bindtap="onCamera">
+      <view class="cta-icon"></view>
+      <text>拍照</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">最近草稿</view>
+    <scroll-view scroll-x class="draft-scroll">
+      <view
+        wx:for="{{drafts}}"
+        wx:key="id"
+        class="draft-card"
+        data-id="{{item.id}}"
+        bindtap="onDraft"
+      >
+        <image wx:if="{{item.imagePath}}" class="draft-thumb" src="{{item.imagePath}}" mode="aspectFill" />
+        <placeholder-box wx:else text="预览图" box-style="width:144rpx;height:144rpx;" />
+        <view class="label-sm">{{item.timeText}}</view>
+      </view>
+      <view class="draft-card" bindtap="onMoreDrafts">
+        <view class="draft-more box-dashed">更多</view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">快捷工具</view>
+    <view class="tools-grid">
+      <view
+        wx:for="{{shortcuts}}"
+        wx:key="id"
+        class="tool-item"
+        data-id="{{item.id}}"
+        bindtap="onShortcut"
+      >
+        <view class="tool-icon box">{{item.icon}}</view>
+        <text>{{item.name}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="banner box-dashed">运营位 / Banner 占位</view>
+  </view>
+</view>

@@ -1,0 +1,25 @@
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 12rpx;
+  font-size: 22rpx;
+}
+
+.slider-label {
+  width: 72rpx;
+  color: #555;
+  flex-shrink: 0;
+}
+
+.slider {
+  flex: 1;
+  margin: 0;
+}
+
+.slider-val {
+  width: 48rpx;
+  text-align: right;
+  color: #888;
+  flex-shrink: 0;
+}

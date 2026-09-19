@@ -1,0 +1,19 @@
+<view class="page">
+  <view wx:if="{{!drafts.length}}" class="empty label-sm">暂无草稿</view>
+  <view
+    wx:for="{{drafts}}"
+    wx:key="id"
+    class="row"
+    data-id="{{item.id}}"
+    bindtap="onOpen"
+    bindlongpress="onDelete"
+  >
+    <image wx:if="{{item.imagePath}}" class="thumb" src="{{item.imagePath}}" mode="aspectFill" />
+    <placeholder-box wx:else text="预览图" box-style="width:120rpx;height:120rpx;" />
+    <view class="meta">
+      <view class="title">{{item.title}}</view>
+      <view class="label-sm">{{item.timeText}}</view>
+    </view>
+    <text class="arrow">›</text>
+  </view>
+</view>

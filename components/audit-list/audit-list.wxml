@@ -1,0 +1,18 @@
+<view class="audit">
+  <view class="audit-head">
+    <text class="audit-title">过审检查</text>
+    <text wx:if="{{summary}}" class="audit-sum {{level}}">{{summary}}</text>
+  </view>
+  <view class="audit-note">{{disclaimer}}</view>
+  <view wx:for="{{items}}" wx:key="id" class="audit-row">
+    <view class="dot {{item.statusClass}}"></view>
+    <view class="audit-body">
+      <view class="audit-label">
+        <text>{{item.label}}</text>
+        <text class="tag {{item.statusClass}}">{{item.statusText}}</text>
+      </view>
+      <view class="audit-detail">{{item.detail}}</view>
+    </view>
+  </view>
+  <view wx:if="{{showRestore}}" class="btn restore" bindtap="onRestore">恢复合规强度</view>
+</view>

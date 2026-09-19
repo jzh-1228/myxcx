@@ -1,0 +1,248 @@
+<view class="page">
+  <view class="ed-top" style="padding-top: {{statusBarHeight}}px">
+    <view class="btn-ghost" bindtap="onClose">← 关闭</view>
+    <view class="btn-ghost {{comparing ? 'on' : ''}}" bindtap="onCompare">对比</view>
+    <view class="spacer"></view>
+    <view class="btn-ghost" bindtap="onUndo">撤销</view>
+    <view class="btn-ghost" bindtap="onRedo">重做</view>
+    <view class="btn export-btn" bindtap="onExport">导出</view>
+  </view>
+
+  <view class="ed-canvas-wrap">
+    <spec-bar
+      wx:if="{{specContext}}"
+      spec-name="{{specContext.name}}"
+      bg-color="{{specContext.bgColor}}"
+      size-text="{{specContext.sizeText}}"
+      collapsed="{{specCollapsed}}"
+      bindtoggle="onToggleSpec"
+      bindcolor="onSpecColor"
+      bindkb="onSpecKb"
+      bindaudit="onSpecAudit"
+    />
+
+    <view class="ed-canvas">
+      <image
+        wx:if="{{comparing && sourcePath}}"
+        class="canvas-image"
+        src="{{sourcePath}}"
+        mode="aspectFit"
+      />
+      <image
+        wx:elif="{{imagePath}}"
+        class="canvas-image {{mattePath && !bgHex ? 'is-matte' : ''}}"
+        src="{{imagePath}}"
+        mode="aspectFit"
+      />
+      <placeholder-box
+        wx:else
+        text="预览图"
+        sub="{{canvasHint}}"
+        box-style="width:100%;height:100%;min-height:320rpx;"
+      />
+      <view wx:if="{{comparing}}" class="compare-mask">原图</view>
+      <view wx:if="{{mattingBusy}}" class="busy-mask">抠图处理中…</view>
+      <view wx:elif="{{beautyBusy}}" class="busy-mask">弱美颜处理中…</view>
+      <view wx:if="{{beautyLabel && !comparing}}" class="beauty-tag">{{beautyLabel}}</view>
+    </view>
+
+    <scroll-view wx:if="{{mode === 'portrait'}}" class="sec-chips" scroll-x enable-flex>
+      <view
+        wx:for="{{portraitChips}}"
+        wx:key="id"
+        class="chip chip-sm {{portraitSub === item.id ? 'selected' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="onPortraitChip"
+      >{{item.name}}</view>
+    </scroll-view>
+  </view>
+
+  <view class="bottom-sheet">
+    <block wx:if="{{mode === 'portrait'}}">
+      <view class="sheet-title">{{portraitTitle}}</view>
+      <block wx:if="{{portraitSub === 'skin'}}">
+        <view class="beauty-modes">
+          <view
+            class="chip chip-sm {{beautyMode === 'compliance' ? 'selected' : ''}}"
+            data-mode="compliance"
+            bindtap="onBeautyMode"
+          >合规</view>
+          <view
+            class="chip chip-sm {{beautyMode === 'beauty' ? 'selected' : ''}}"
+            data-mode="beauty"
+            bindtap="onBeautyMode"
+          >美颜</view>
+        </view>
+        <view wx:if="{{beautyMode === 'compliance'}}" class="note-tag beauty-hint">合规档将磨皮/美白/祛瑕锁在弱强度，适合证件照。</view>
+      </block>
+      <slider-row
+        wx:for="{{portraitSliders}}"
+        wx:key="key"
+        label="{{item.label}}"
+        name="{{item.key}}"
+        value="{{item.value}}"
+        max="{{item.max || (portraitSub === 'skin' ? beautyMax : 100)}}"
+        bindchange="onSliderChange"
+      />
+      <view wx:if="{{portraitSub === 'skin'}}" class="beauty-actions">
+        <view class="btn" bindtap="onNaturalBeauty">自然美颜</view>
+        <view class="btn btn-primary" bindtap="onApplyBeauty">应用</view>
+      </view>
+    </block>
+
+    <block wx:elif="{{mode === 'filter'}}">
+      <view class="sheet-title">滤镜</view>
+      <scroll-view class="filter-row" scroll-x>
+        <view
+          wx:for="{{filters}}"
+          wx:key="id"
+          class="filter-thumb {{filterId === item.id ? 'selected' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onFilter"
+        >
+          <view class="ft placeholder">{{item.id === 'none' ? '原图' : item.name}}</view>
+          <text>{{item.name}}</text>
+        </view>
+      </scroll-view>
+      <slider-row
+        label="强度"
+        name="filterStrength"
+        value="{{filterStrength}}"
+        bindchange="onSliderChange"
+      />
+    </block>
+
+    <block wx:elif="{{mode === 'edit'}}">
+      <view class="sheet-title">{{editSheetTitle}}</view>
+      <view class="ed-tools">
+        <view
+          wx:for="{{editTools}}"
+          wx:key="id"
+          class="ed-tool {{editTool === item.id ? 'active' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onEditTool"
+        >
+          <view class="ed-tool-icon box"></view>
+          <text>{{item.name}}</text>
+        </view>
+      </view>
+      <block wx:if="{{editTool === 'adjust'}}">
+        <slider-row
+          wx:for="{{adjustSliders}}"
+          wx:key="key"
+          label="{{item.label}}"
+          name="{{item.key}}"
+          value="{{item.value}}"
+          bindchange="onSliderChange"
+        />
+      </block>
+      <block wx:if="{{editTool === 'matting'}}">
+        <view class="matting-status">{{mattePath ? '已生成透明图层，可换底' : '尚未抠图'}}</view>
+        <view class="btn btn-primary matting-btn" bindtap="onRunMatte">{{mattePath ? '重新抠图' : '开始抠图'}}</view>
+        <view class="sheet-title bg-title">换底色</view>
+        <view class="bg-row">
+          <view
+            wx:for="{{bgPresets}}"
+            wx:key="id"
+            class="chip {{bgHex === item.hex ? 'selected' : ''}}"
+            data-hex="{{item.hex}}"
+            bindtap="onBgPreset"
+          >{{item.name}}</view>
+          <view class="chip {{customBg ? 'selected' : ''}}" bindtap="onCustomBg">自定义</view>
+        </view>
+      </block>
+    </block>
+
+    <block wx:elif="{{mode === 'create'}}">
+      <view class="sheet-title">创作</view>
+      <view class="ed-tools">
+        <view
+          wx:for="{{createTools}}"
+          wx:key="id"
+          class="ed-tool {{createTool === item.id ? 'active' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onCreateTool"
+        >
+          <view class="ed-tool-icon box"></view>
+          <text>{{item.name}}</text>
+        </view>
+      </view>
+      <scroll-view wx:if="{{createTool === 'template'}}" class="tpl-row" scroll-x>
+        <view
+          wx:for="{{createTemplates}}"
+          wx:key="id"
+          class="tpl-item"
+          data-id="{{item.id}}"
+          bindtap="onCreateTemplate"
+        >
+          <placeholder-box text="{{item.name}}" box-style="width:128rpx;height:128rpx;border-radius:8rpx;" />
+        </view>
+      </scroll-view>
+    </block>
+
+    <block wx:elif="{{mode === 'ai'}}">
+      <view class="sheet-title">AI 能力</view>
+      <view class="ai-grid">
+        <view
+          wx:for="{{aiCaps}}"
+          wx:key="id"
+          class="ai-card box {{aiCap === item.id ? 'active' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onAiCap"
+        >{{item.name}}</view>
+      </view>
+      <view class="note-tag ai-note">能力入口，不绑定具体厂商</view>
+    </block>
+  </view>
+
+  <view class="ed-primary-bar safe-bottom">
+    <view
+      wx:for="{{modes}}"
+      wx:key="id"
+      class="ed-tab {{mode === item.id ? 'selected' : ''}}"
+      data-id="{{item.id}}"
+      bindtap="onMode"
+    >{{item.name}}</view>
+  </view>
+
+  <export-sheet
+    show="{{showExport}}"
+    has-spec="{{hasSpec}}"
+    preset-id="{{exportPreset}}"
+    custom-kb="{{exportCustomKb}}"
+    current-kb-text="{{exportCurrentKbText}}"
+    preview-text="{{exportPreviewText}}"
+    disclaimer="{{auditDisclaimer}}"
+    audit-items="{{auditItems}}"
+    audit-summary="{{auditSummary}}"
+    audit-level="{{auditLevel}}"
+    show-restore="{{showAuditRestore}}"
+    busy="{{exportBusy}}"
+    bindclose="onCloseExport"
+    bindpreset="onExportPreset"
+    bindcustom="onExportCustom"
+    bindpreview="onExportPreview"
+    bindaudit="onExportAudit"
+    bindrestore="onRestoreCompliance"
+    bindsave="onExportSave"
+    bindhd="onExportHd"
+    bindshare="onExportShare"
+    bindsaveid="onExportSaveId"
+  />
+
+  <view wx:if="{{showHexDialog}}" class="hex-overlay" catchtap="onCancelHex">
+    <view class="hex-dialog" catchtap="noop">
+      <view class="sheet-title">自定义底色</view>
+      <input
+        class="hex-input"
+        placeholder="如 FFFFFF 或 #438EDB"
+        value="{{hexDraft}}"
+        bindinput="onHexDraft"
+      />
+      <view class="hex-actions">
+        <view class="btn-ghost" bindtap="onCancelHex">取消</view>
+        <view class="btn btn-primary" bindtap="onConfirmHex">应用</view>
+      </view>
+    </view>
+  </view>
+</view>

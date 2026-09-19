@@ -1,0 +1,39 @@
+<view class="page">
+  <view class="app-header">
+    <view class="app-name">证件照</view>
+    <view class="app-sub">选规格 → 进入全量编辑器（挂载规格条）</view>
+  </view>
+
+  <view class="section">
+    <view class="search-bar">
+      <text class="search-icon">🔍</text>
+      <input
+        class="search-input"
+        placeholder="搜索规格（一寸 / 护照 / 签证…）"
+        value="{{keyword}}"
+        bindinput="onSearch"
+        confirm-type="search"
+      />
+    </view>
+
+    <view class="section-title">常用规格</view>
+    <view class="spec-grid">
+      <view
+        wx:for="{{filtered}}"
+        wx:key="id"
+        class="spec-card box"
+        data-id="{{item.id}}"
+        bindtap="onSpec"
+      >
+        <text class="spec-name">{{item.name}}</text>
+        <text class="sc-size">{{item.sizeText}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{!filtered.length}}" class="empty label-sm">没有匹配的规格</view>
+
+    <view class="note-tag hint">
+      选择规格后进入同一套编辑器并挂载规格条。已配置抠图服务时会自动抠图并套用底色。
+    </view>
+  </view>
+</view>
